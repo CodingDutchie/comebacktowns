@@ -73,3 +73,9 @@ def test_stream_get_retries_whole_transfer():
         client, "https://x/", lambda r, ct: got.append(r.read()), sleep=lambda s: None
     )
     assert got == [b"data"] and size == 4
+
+
+def test_make_client_pins_ipv4():
+    client = http.make_client()
+    pool = client._transport._pool  # type: ignore[attr-defined]
+    assert pool._local_address == "0.0.0.0"
