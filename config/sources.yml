@@ -20,3 +20,132 @@ popest:
   licence: Public domain (U.S. federal government work)
   attribution: U.S. Census Bureau, Vintage 2024 Population Estimates
   used_for: Latest population, legal type, county of each place.
+acs:
+  name: American Community Survey 5-year estimates
+  publisher: U.S. Census Bureau
+  url: https://api.census.gov/data/{year}/acs/acs5
+  cadence: annual
+  licence: Public domain (U.S. federal government work)
+  attribution: U.S. Census Bureau, American Community Survey 5-Year Estimates
+  requires_key: CENSUS_API_KEY
+  vintage: 2024               # 2020-2024 five-year period
+  prior_vintage: 2019         # 2015-2019, the latest non-overlapping period
+  tables:                     # fetched as whole groups (estimate + MOE) at the latest vintage
+    B25077: Median home value
+    B25064: Median gross rent
+    B19013: Median household income
+    B25002: Occupancy status (vacancy)
+    B25034: Year structure built (pre-1940 share)
+    B28002: Internet subscriptions (broadband share)
+    B17001: Poverty status
+    B08303: Travel time to work
+    B14001: School enrollment by level
+    B09001: Population under 18 years
+  prior_tables: [B14001, B09001, B25077, B19013, B25002]
+  geographies:
+    place: {for: "place:*", in: "state:{state}"}
+    county: {for: "county:*", in: "state:{state}"}
+    cbsa: {for: "metropolitan statistical area/micropolitan statistical area:*"}
+    state: {for: "state:{state}"}
+  used_for: Home value, rent, income, vacancy, housing age, broadband, poverty, commute, enrollment.
+permits:
+  name: Building Permits Survey, place-level annual (Northeast region)
+  publisher: U.S. Census Bureau
+  url: https://www2.census.gov/econ/bps/Place/Northeast%20Region/ne{year}a.txt
+  years: [2021, 2022, 2023, 2024, 2025]
+  cadence: annual
+  licence: Public domain (U.S. federal government work)
+  attribution: U.S. Census Bureau, Building Permits Survey
+  used_for: Housing units permitted per year (3-year rolling mean per 1,000 residents).
+nrhp:
+  name: National Register of Historic Places, spatial data
+  publisher: National Park Service
+  url: https://mapservices.nps.gov/arcgis/rest/services/cultural_resources/nrhp_locations/MapServer
+  layers: {points: 0, polygons: 1}
+  where: "State='NEW YORK' AND ResType='district'"
+  cadence: quarterly
+  licence: Public domain (U.S. federal government work)
+  attribution: National Park Service, National Register of Historic Places
+  used_for: Whether a listed historic district lies within the place.
+tiger:
+  name: TIGERweb incorporated place boundaries
+  publisher: U.S. Census Bureau
+  url: https://tigerweb.geo.census.gov/arcgis/rest/services/TIGERweb/Places_CouSub_ConCity_SubMCD/MapServer/4/query
+  cadence: annual
+  licence: Public domain (U.S. federal government work)
+  attribution: U.S. Census Bureau, TIGERweb
+  used_for: Place polygons for spatial joins (historic districts, OSM business counts).
+rail:
+  name: Rail stations (Amtrak and Metro-North)
+  publisher: U.S. DOT Bureau of Transportation Statistics; MTA
+  amtrak_url: https://services.arcgis.com/xOi1kZaI0eWDREZv/arcgis/rest/services/NTAD_Amtrak_Stations/FeatureServer/0/query
+  amtrak_where: "StnType='TRAIN'"
+  mnr_url: https://rrgtfsfeeds.s3.amazonaws.com/gtfsmnr.zip
+  manual_stations: config/rail_stations_manual.yml
+  cadence: annual
+  licence: Public domain (BTS NTAD); MTA developer data terms (GTFS)
+  attribution: BTS National Transportation Atlas Database; MTA Metro-North Railroad GTFS
+  used_for: Straight-line miles from each place to the nearest passenger rail station.
+zillow:
+  name: Zillow Home Value Index (ZHVI) and Observed Rent Index (ZORI), city level
+  publisher: Zillow Research
+  files:
+    zhvi: https://files.zillowstatic.com/research/public_csvs/zhvi/City_zhvi_uc_sfrcondo_tier_0.33_0.67_sm_sa_month.csv
+    zori: https://files.zillowstatic.com/research/public_csvs/zori/City_zori_uc_sfrcondomfr_sm_month.csv
+  cadence: monthly
+  licence: Free to use with attribution (Zillow Research data terms)
+  attribution: Zillow Research, ZHVI and ZORI
+  used_for: Current home value and rent where Zillow covers the place; gaps stay gaps.
+hospitals:
+  name: NYS Health Facility General Information
+  publisher: New York State Department of Health (Health Data NY)
+  url: https://health.data.ny.gov/api/views/vn5v-hh5r/rows.csv?accessType=DOWNLOAD
+  filename: health_facility_general_information.csv
+  facility_description: Hospital
+  cadence: monthly
+  licence: Open data (NYS Open Data terms of use)
+  attribution: New York State Department of Health, Health Facility General Information
+  used_for: Hospital locations for drive time to the nearest hospital.
+osrm:
+  name: OSRM routing (public demo server)
+  publisher: Project OSRM, OpenStreetMap contributors
+  url: https://router.project-osrm.org/table/v1/driving/{coords}
+  min_interval_seconds: 1.1
+  cadence: once per town, cached
+  licence: ODbL (OpenStreetMap data); demo server usage policy, one request per second
+  attribution: Routing by OSRM using OpenStreetMap data (c) OpenStreetMap contributors
+  used_for: Drive minutes to New York City, the nearest regional hub, and the nearest hospital.
+osm:
+  name: OpenStreetMap via Overpass API
+  publisher: OpenStreetMap contributors
+  url: https://overpass-api.de/api/interpreter
+  min_interval_seconds: 2.0
+  simplify_tolerance_deg: 0.0005
+  query: |
+    [out:json][timeout:90];
+    (
+      nwr["shop"](poly:"{poly}");
+      nwr["amenity"~"^(restaurant|cafe|bar|pub|fast_food|food_court|ice_cream|biergarten|bank|pharmacy|dentist|doctors|clinic|veterinary|library|theatre|cinema|arts_centre|marketplace|post_office|childcare|coworking_space)$"](poly:"{poly}");
+      nwr["office"](poly:"{poly}");
+      nwr["craft"](poly:"{poly}");
+      nwr["tourism"~"^(hotel|guest_house|hostel|motel|museum|gallery)$"](poly:"{poly}");
+    );
+    out tags center;
+  cadence: monthly
+  licence: ODbL
+  attribution: (c) OpenStreetMap contributors, via Overpass API
+  used_for: Count of storefront businesses and services inside the place boundary.
+dri:
+  name: Downtown Revitalization Initiative and NY Forward awards
+  publisher: New York State (ny.gov)
+  pages:
+    dri: https://www.ny.gov/programs/downtown-revitalization-initiative
+    nyf: https://www.ny.gov/programs/ny-forward
+  round_link_pattern: 'href="?(/(?:downtown-revitalization-initiative|ny-forward)[^" >]*round[^" >]*)'
+  standard_awards:
+    dri: 10000000
+    nyf: 4500000
+  cadence: annual
+  licence: NYS web content, public information
+  attribution: New York State Department of State, DRI and NY Forward program pages
+  used_for: Which places won a state downtown award, in which round and year.
