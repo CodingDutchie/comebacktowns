@@ -41,6 +41,7 @@ acs:
     B08303: Travel time to work
     B14001: School enrollment by level
     B09001: Population under 18 years
+    B01003: Total population (denominator for under-18 share)
   prior_tables: [B14001, B09001, B25077, B19013, B25002]
   geographies:
     place: {for: "place:*", in: "state:{state}"}
@@ -145,6 +146,11 @@ dri:
   standard_awards:
     dri: 10000000
     nyf: 4500000
+  # Year each round's winners were announced by the Governor's office (the round number is
+  # the fact the page states; the year is the program calendar, kept here so it is reviewable).
+  announcement_years:
+    dri: {"1": 2016, "2": 2017, "3": 2018, "4": 2019, "5": 2021, "6": 2022, "7": 2023, "8": 2024, "9": 2025}
+    nyf: {"1": 2023, "2": 2023, "3": 2024, "4": 2025}
   cadence: annual
   licence: NYS web content, public information
   attribution: New York State Department of State, DRI and NY Forward program pages

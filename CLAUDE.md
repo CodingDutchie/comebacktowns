@@ -12,6 +12,8 @@ uv run python -m pipeline.cli scope --dry-run        # build the town list, no w
 uv run python -m pipeline.cli scope                  # ...and write the towns table in D1
 uv run python -m pipeline.cli ingest --all           # every feed -> R2 raw/{source}/{as_of}/
 uv run python -m pipeline.cli ingest permits nrhp    # ...or named feeds; reruns are no-ops
+uv run python -m pipeline.cli transform --dry-run    # raw -> metrics rows, QA, coverage table
+uv run python -m pipeline.cli transform              # ...and upsert the metrics table in D1
 npx wrangler d1 migrations apply comebacktowns --remote   # schema, from migrations/
 cd site && npm ci && npm run build                   # Astro static build -> site/dist
 npx wrangler deploy                                  # site/dist (+ API later) as one Worker
@@ -80,3 +82,16 @@ applied with wrangler), `site/` (Astro 5, static), `worker/` (Phase 5 API), `tes
 - **Overpass and the Census API cannot be reached from the Claude Code container** (the
   proxy drops Overpass; the Census API needs the key that lives in GitHub Secrets). Those
   two feeds run through `.github/workflows/ingest.yml` (`workflow_dispatch`).
+- **Metric naming in Phase 2.** Every ACS-derived row keeps its margin of error and the 40%
+  rule sets `suppressed`; ratios use the Census proportion formula. `metro_median_home_value`
+  is the CBSA median where the Building Permits Survey places the town in a CBSA, else the
+  county median (each row cites the file it came from). Straight-line distances are separate
+  `crow_miles_*` rows from Gazetteer coordinates, never substituted for `drive_min_*`.
+- **The 40% rule and ACS trends.** `school_enrollment_trend` (2015-19 vs 2020-24 K-12
+  enrollment) is suppressed for 145 of 148 towns: the MOE of a difference of two five-year
+  estimates is always wider than the small change itself at village scale. The rule is kept;
+  the owner swapped the services input for `under_18_share` (B09001 over B01003, a level
+  that clears the rule) before v1 was ever published. The trend rows are still produced.
+  `pre1940_share` clears the rule for 88.5% of towns, just under the 90% coverage floor.
+- **`transform --allow-low-coverage`** writes rows even when the coverage gate fails; the
+  gate itself (`config/qa.yml`) stays at 90% so the shortfall is printed on every run.

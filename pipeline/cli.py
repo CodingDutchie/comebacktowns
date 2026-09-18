@@ -74,6 +74,50 @@ def cmd_scope(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_transform(args: argparse.Namespace) -> int:
+    from pipeline.qa.metrics import check_coverage, coverage_report, validate_metrics
+    from pipeline.scope import towns_from_store
+    from pipeline.transform import METRIC_COLUMNS
+    from pipeline.transform.run import run_transforms
+
+    store = raw_store()
+    as_of = normalise_as_of(args.as_of)
+    towns = towns_from_store(store, as_of)
+    rows = run_transforms(store, as_of, towns=towns, only=args.only or None)
+    try:
+        validate_metrics(rows)
+    except QAError as exc:
+        log.error("%s", exc)
+        return 1
+    report = coverage_report(rows, len(towns))
+    print("coverage of scoring inputs (usable share of towns):")
+    for name, share in report.items():
+        print(f"  {name:32s} {share:6.1%}")
+    if args.out:
+        with Path(args.out).open("w", newline="") as fh:
+            writer = csv.writer(fh)
+            writer.writerow(METRIC_COLUMNS)
+            writer.writerows(r.row() for r in rows)
+        log.info("transform: wrote %s", args.out)
+    if not args.only:
+        try:
+            check_coverage(report)
+        except QAError as exc:
+            log.error("coverage gate failed: %s", exc)
+            if not args.allow_low_coverage:
+                return 1
+    if args.dry_run:
+        print(f"{len(rows)} metric rows (dry run, nothing written to D1)")
+        return 0
+    from pipeline.load.d1 import D1Client
+    from pipeline.load.metrics import load_metrics
+
+    d1 = D1Client.from_env()
+    written = load_metrics(rows, d1)
+    print(f"metrics: {written} upserted, {d1.count('metrics')} rows now in D1")
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="python -m pipeline.cli")
     parser.add_argument("-v", "--verbose", action="store_true")
@@ -91,6 +135,16 @@ def build_parser() -> argparse.ArgumentParser:
     scope.add_argument("--dry-run", action="store_true", help="build and validate, skip D1")
     scope.add_argument("--out", help="also write the towns as CSV to this path")
     scope.set_defaults(func=cmd_scope)
+
+    transform = sub.add_parser("transform", help="raw snapshots -> metrics rows -> D1")
+    transform.add_argument("--as-of", help="ISO date of the raw snapshot to transform")
+    transform.add_argument("--dry-run", action="store_true", help="build and validate, skip D1")
+    transform.add_argument("--out", help="also write the metric rows as CSV to this path")
+    transform.add_argument("--only", nargs="*", help="run only these transforms")
+    transform.add_argument(
+        "--allow-low-coverage", action="store_true", help="write even if the coverage gate fails"
+    )
+    transform.set_defaults(func=cmd_transform)
     return parser
 
 
