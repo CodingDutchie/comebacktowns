@@ -41,6 +41,7 @@ acs:
     B08303: Travel time to work
     B14001: School enrollment by level
     B09001: Population under 18 years
+    B01003: Total population (denominator for under-18 share)
   prior_tables: [B14001, B09001, B25077, B19013, B25002]
   geographies:
     place: {for: "place:*", in: "state:{state}"}

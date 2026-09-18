@@ -123,6 +123,7 @@ def test_acs_metrics_end_to_end(ctx):
             "B14001_007M": "40",
         },
         "B09001": {"B09001_001E": "800", "B09001_001M": "60"},
+        "B01003": {"B01003_001E": "4000", "B01003_001M": "100"},
     }.items():
         rows = {g: vars_ for g in place}
         s.put_bytes(f"raw/acs/{AS}/acs5_2024_{table}_place.json", acs_doc(table, "place", rows))
@@ -178,6 +179,9 @@ def test_acs_metrics_end_to_end(ctx):
     assert by[("3613002", "k12_enrollment")].value == 700
     assert abs(by[("3613002", "school_enrollment_trend")].value - (700 - 900) / 900) < 1e-9
     assert by[("3613002", "school_enrollment_trend")].period == "2015-2019 to 2020-2024"
+    share = by[("3613002", "under_18_share")]
+    assert abs(share.value - 0.2) < 1e-9 and share.suppressed == 0
+    assert abs(share.moe - ((60**2 - 0.2**2 * 100**2) ** 0.5) / 4000) < 1e-9
     assert by[("3613002", "county_median_home_value")].value == 280000
     assert by[("3613002", "metro_median_home_value")].value == 280000  # no CBSA -> county
     assert by[("3613002", "metro_median_home_value")].r2_key.endswith("_county.json")

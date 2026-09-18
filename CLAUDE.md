@@ -89,9 +89,9 @@ applied with wrangler), `site/` (Astro 5, static), `worker/` (Phase 5 API), `tes
   `crow_miles_*` rows from Gazetteer coordinates, never substituted for `drive_min_*`.
 - **The 40% rule and ACS trends.** `school_enrollment_trend` (2015-19 vs 2020-24 K-12
   enrollment) is suppressed for 145 of 148 towns: the MOE of a difference of two five-year
-  estimates is always wider than the small change itself at village scale. The rule is kept
-  and the input is reported as unusable; replacing it in the scoring config is the owner's
-  call (BUILD_PLAN.md §11.5). `pre1940_share` clears the rule for 88.5% of towns, just under
-  the 90% coverage floor, for the same reason.
+  estimates is always wider than the small change itself at village scale. The rule is kept;
+  the owner swapped the services input for `under_18_share` (B09001 over B01003, a level
+  that clears the rule) before v1 was ever published. The trend rows are still produced.
+  `pre1940_share` clears the rule for 88.5% of towns, just under the 90% coverage floor.
 - **`transform --allow-low-coverage`** writes rows even when the coverage gate fails; the
   gate itself (`config/qa.yml`) stays at 90% so the shortfall is printed on every run.

@@ -14,6 +14,8 @@ bounds:
   commute_60plus_share: [0, 1]
   k12_enrollment: [0, 20000]
   population_under_18: [0, 30000]
+  population_total: [500, 60000]
+  under_18_share: [0, 0.7]
   school_enrollment_trend: [-0.9, 3]
   under_18_trend: [-0.9, 3]
   population: [500, 60000]

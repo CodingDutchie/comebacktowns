@@ -101,11 +101,28 @@ PLACE_METRICS: dict[str, tuple[str, str, list[str], str | None]] = {
         None,
     ),
     "population_under_18": ("B09001", "estimate", ["B09001_001"], None),
+    "population_total": ("B01003", "estimate", ["B01003_001"], None),
+}
+SHARES = {  # metric -> (numerator metric, denominator metric), across tables
+    "under_18_share": ("population_under_18", "population_total"),
 }
 TRENDS = {  # metric -> base metric whose 2015-2019 vs 2020-2024 change is reported
     "school_enrollment_trend": "k12_enrollment",
     "under_18_trend": "population_under_18",
 }
+
+
+def proportion(
+    num: float | None, num_moe: float | None, den: float | None, den_moe: float | None
+) -> tuple[float | None, float | None]:
+    """The proportion formula on two already-extracted estimates."""
+    if num is None or den is None or den == 0:
+        return None, None
+    p = num / den
+    inner = (num_moe or 0.0) ** 2 - (p**2) * (den_moe or 0.0) ** 2
+    if inner < 0:
+        inner = (num_moe or 0.0) ** 2 + (p**2) * (den_moe or 0.0) ** 2
+    return p, math.sqrt(inner) / den
 
 
 def compute(
@@ -166,6 +183,23 @@ def acs_metrics(ctx: Context) -> list[MetricRow]:
                 MetricRow(
                     geoid=geoid,
                     metric=metric,
+                    period=PERIOD,
+                    value=value,
+                    moe=moe,
+                    suppressed=suppress_if_wide(value, moe),
+                    source_id=SOURCE_ID,
+                    as_of=ctx.as_of,
+                    r2_key=key,
+                )
+            )
+        for share, (num_name, den_name) in SHARES.items():
+            num_v, num_m, key = metrics[num_name]
+            den_v, den_m, _ = metrics[den_name]
+            value, moe = proportion(num_v, num_m, den_v, den_m)
+            rows.append(
+                MetricRow(
+                    geoid=geoid,
+                    metric=share,
                     period=PERIOD,
                     value=value,
                     moe=moe,
