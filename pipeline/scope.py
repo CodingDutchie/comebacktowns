@@ -209,3 +209,15 @@ def assign_slugs(towns: list[Town]) -> None:
     dupes = {s: [t.geoid for t in g] for s, g in seen.items() if len(g) > 1}
     if dupes:
         raise ValueError(f"slug collision after county disambiguation: {dupes}")
+
+
+def towns_from_store(store: Any, as_of: str | None = None) -> list[Town]:
+    """Rebuild the scope from the popest and gazetteer snapshots for ``as_of``."""
+    from pipeline.ingest import gazetteer, popest
+    from pipeline.ingest.base import normalise_as_of
+    from pipeline.settings import scope_config
+
+    as_of_str = normalise_as_of(as_of)
+    popest_key = popest.fetch(as_of_str, store=store)
+    gaz_key = gazetteer.fetch(as_of_str, store=store)
+    return build_towns(store.get_bytes(popest_key), store.get_bytes(gaz_key), scope_config())

@@ -40,3 +40,18 @@ regions:
     "065": Oneida
     "077": Otsego
     "095": Schoharie
+# Drive-time destinations (config, not data): coordinates are transcribed from OpenStreetMap
+# for the named landmark. "nyc" is Grand Central Terminal. Regional hubs are the job and
+# service centres a resident of these regions actually drives to; the metric takes the
+# nearest.
+destinations:
+  nyc: {name: New York City (Grand Central), lat: 40.7527, lon: -73.9772}
+  hubs:
+    - {name: Albany, lat: 42.6526, lon: -73.7562}
+    - {name: Utica, lat: 43.1009, lon: -75.2327}
+    - {name: Poughkeepsie, lat: 41.7004, lon: -73.9210}
+    - {name: Kingston, lat: 41.9270, lon: -74.0001}
+    - {name: Newburgh, lat: 41.5034, lon: -74.0104}
+    - {name: Middletown, lat: 41.4459, lon: -74.4229}
+    - {name: White Plains, lat: 41.0340, lon: -73.7629}
+  hospitals_nearest: 3     # nearest by straight line, then routed
