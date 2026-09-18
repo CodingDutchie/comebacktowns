@@ -63,46 +63,57 @@ function corsHeaders(request: Request, env: Env): Record<string, string> {
   return headers;
 }
 
-function json(body: unknown, request: Request, env: Env, status = 200, maxAge = 300): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: {
-      "Content-Type": "application/json; charset=utf-8",
-      "Cache-Control": status === 200 ? `public, max-age=${maxAge}, s-maxage=${maxAge}` : "no-store",
-      "X-Content-Type-Options": "nosniff",
-      ...corsHeaders(request, env),
-    },
-  });
+function json(
+  body: unknown,
+  request: Request,
+  env: Env,
+  status = 200,
+  maxAge = 300,
+  startedAt?: number,
+): Response {
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json; charset=utf-8",
+    "Cache-Control": status === 200 ? `public, max-age=${maxAge}, s-maxage=${maxAge}` : "no-store",
+    "X-Content-Type-Options": "nosniff",
+    ...corsHeaders(request, env),
+  };
+  // Wall time spent in the Worker for this request, so latency can be read at the edge
+  // independent of the caller's network path.
+  if (startedAt !== undefined) headers["Server-Timing"] = `worker;dur=${Date.now() - startedAt}`;
+  return new Response(JSON.stringify(body), { status, headers });
 }
 
 async function api(request: Request, env: Env, ctx: ExecutionContext, url: URL): Promise<Response> {
+  const t0 = Date.now();
   if (request.method === "OPTIONS") return new Response(null, { status: 204, headers: corsHeaders(request, env) });
-  if (request.method !== "GET") return json({ error: "method not allowed" }, request, env, 405);
+  if (request.method !== "GET" && request.method !== "HEAD") {
+    return json({ error: "method not allowed" }, request, env, 405);
+  }
   const path = url.pathname.replace(/\/+$/, "");
   if (path === "/api/health") {
     const index = await loadIndex(env, ctx);
-    return json({ ok: true, towns: index.towns.length, scores_computed_at: index.computed_at, index_built_at: index.built_at }, request, env, 200, 30);
+    return json({ ok: true, towns: index.towns.length, scores_computed_at: index.computed_at, index_built_at: index.built_at }, request, env, 200, 30, t0);
   }
   if (path === "/api/search") {
     const q = url.searchParams.get("q") ?? "";
     if (q.length > 80) return json({ error: "q too long" }, request, env, 400);
     const index = await loadIndex(env, ctx);
     const limit = Number(url.searchParams.get("limit") ?? 10);
-    return json({ q, results: search(index, q, Number.isFinite(limit) ? limit : 10) }, request, env);
+    return json({ q, results: search(index, q, Number.isFinite(limit) ? limit : 10) }, request, env, 200, 300, t0);
   }
   if (path === "/api/filter") {
     const parsed = parseFilter(url.searchParams);
     if (!parsed.ok) return json({ error: parsed.error }, request, env, 400);
     const index = await loadIndex(env, ctx);
     const { total, towns } = filter(index, parsed.value);
-    return json({ total, count: towns.length, towns: towns.map(publicTown) }, request, env);
+    return json({ total, count: towns.length, towns: towns.map(publicTown) }, request, env, 200, 300, t0);
   }
   if (path === "/api/compare") {
     const slugs = (url.searchParams.get("towns") ?? "").split(",");
     const index = await loadIndex(env, ctx);
     const { found, missing } = compare(index, slugs);
     if (!found.length) return json({ error: "no matching towns", missing }, request, env, 404);
-    return json({ towns: found.map(publicTown), missing }, request, env);
+    return json({ towns: found.map(publicTown), missing }, request, env, 200, 300, t0);
   }
   return json({ error: "not found" }, request, env, 404);
 }
