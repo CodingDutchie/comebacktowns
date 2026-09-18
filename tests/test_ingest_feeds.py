@@ -157,8 +157,14 @@ def test_rail_fetches_amtrak_trains_and_mnr_gtfs(local_store: LocalStore):
         )
 
     keys = rail.fetch("2026-09-18", store=local_store, client=client_for(handler))
-    assert keys == ["raw/rail/2026-09-18/amtrak_stations.json", "raw/rail/2026-09-18/gtfsmnr.zip"]
+    assert keys == [
+        "raw/rail/2026-09-18/amtrak_stations.json",
+        "raw/rail/2026-09-18/gtfsmnr.zip",
+        "raw/rail/2026-09-18/manual_stations.yml",
+    ]
     assert read_meta(local_store, keys[1])["content_type"] == "application/zip"
+    assert b"Port Jervis" in local_store.get_bytes(keys[2])
+    assert read_meta(local_store, keys[2])["url"] == "repo://config/rail_stations_manual.yml"
 
 
 def test_zillow_streams_both_files(local_store: LocalStore):

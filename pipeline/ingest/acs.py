@@ -63,7 +63,7 @@ def fetch(
     sleep: Any = None,
 ) -> list[str]:
     entry = source(SOURCE_ID)
-    key_value = require_env(entry["requires_key"])
+    key_value: str | None = None  # read lazily: a fully cached run needs no key
     state = site_config()["STATE_FIPS"]
     as_of_str = normalise_as_of(as_of)
     store = store or raw_store()
@@ -78,6 +78,7 @@ def fetch(
             if store.exists(key):
                 log.info("acs: %s already present, skipping", key)
                 continue
+            key_value = key_value or require_env(entry["requires_key"])
             base = entry["url"].format(year=year)
             public_params = {"get": f"group({table})", **geo_params}
             public_url = f"{base}?{urlencode(public_params)}"

@@ -1,0 +1,49 @@
+# QA rule 5: per-metric sanity bounds. A value outside its range fails the run rather than
+# publishing. Ranges are deliberately wide; they catch unit and parsing mistakes, not outliers.
+bounds:
+  median_home_value: [10000, 5000000]
+  county_median_home_value: [10000, 5000000]
+  cbsa_median_home_value: [10000, 5000000]
+  metro_median_home_value: [10000, 5000000]
+  median_gross_rent: [200, 6000]
+  median_household_income: [10000, 500000]
+  vacancy_rate: [0, 0.6]
+  pre1940_share: [0, 1]
+  broadband_subscription_share: [0, 1]
+  poverty_rate: [0, 0.8]
+  commute_60plus_share: [0, 1]
+  k12_enrollment: [0, 20000]
+  population_under_18: [0, 30000]
+  school_enrollment_trend: [-0.9, 3]
+  under_18_trend: [-0.9, 3]
+  population: [500, 60000]
+  population_change: [-0.5, 1]
+  permit_units: [0, 3000]
+  permit_months_reported: [0, 12]
+  permits_per_1k: [0, 80]
+  zhvi: [20000, 5000000]
+  zori: [300, 8000]
+  nrhp_district_count: [0, 30]
+  has_nrhp_district: [0, 1]
+  miles_to_rail_station: [0, 120]
+  osm_business_count: [0, 5000]
+  osm_business_per_1k: [0, 300]
+  drive_min_nyc: [15, 420]
+  drive_min_regional_hub: [0, 240]
+  drive_min_nearest_hospital: [0, 120]
+  hospital_within_20min: [0, 1]
+  crow_miles_nyc: [10, 300]
+  crow_miles_regional_hub: [0, 150]
+  dri_award_count: [0, 5]
+  dri_award_amount: [0, 20000000]
+  dri_award_year: [2016, 2030]
+# Coverage gate (BUILD_PLAN.md Phase 2): every scoring input must be present and not
+# suppressed for at least this share of in-scope towns. Inputs listed as conditional only
+# exist when the condition holds (a town with no award has no award year) and are exempt.
+coverage:
+  min_share: 0.9
+  conditional_inputs: [dri_award_year]
+  # scoring.v1.yml names an input that no open source provides at a speed tier; the honest
+  # measurable is the ACS subscription share, so the coverage gate reads it under that name.
+  input_aliases:
+    broadband_100_share: broadband_subscription_share

@@ -176,3 +176,125 @@ def parse_round_page(
                     )
                 )
     return awards
+
+
+# --- matching awards to in-scope places -------------------------------------------------
+
+import json  # noqa: E402
+
+from pipeline.scope import slugify  # noqa: E402
+from pipeline.settings import sources_config  # noqa: E402
+from pipeline.transform import Context, MetricRow  # noqa: E402
+
+SOURCE_ID = "dri"
+DRI_REGION_TO_SCOPE = {
+    "Mid-Hudson": "Hudson Valley",
+    "Capital Region": "Capital Region",
+    "Mohawk Valley": "Mohawk Valley",
+}
+PREFIXES = re.compile(r"^(the\s+)?(village|city|town|hamlet|downtown)\s+(of\s+)?", re.IGNORECASE)
+
+
+def community_names(text: str) -> list[str]:
+    """Candidate place names from a community label, e.g. "Village of Clinton and Town of
+    Kirkland" -> ["Clinton", "Kirkland"]; "Tannersville’s Painted Village DRI District" ->
+    ["Tannersville"]."""
+    text = re.split(r"[’']s\b", text, maxsplit=1)[0]
+    parts = re.split(r",|\band\b|–|—|/", text)
+    names = []
+    for part in parts:
+        part = PREFIXES.sub("", part.strip()).strip()
+        part = re.sub(r"\s+(DRI|NY Forward).*$", "", part, flags=re.IGNORECASE)
+        if part:
+            names.append(part)
+    return names
+
+
+def match_awards(awards: list[Award], ctx: Context) -> dict[str, list[Award]]:
+    """geoid -> awards whose community name and REDC region match a scope town."""
+    by_region: dict[tuple[str, str], str] = {
+        (slugify(t.name), t.region): t.geoid for t in ctx.towns
+    }
+    matched: dict[str, list[Award]] = {}
+    for award in awards:
+        region = DRI_REGION_TO_SCOPE.get(award.region)
+        if region is None:
+            continue
+        for name in community_names(award.community):
+            geoid = by_region.get((slugify(name), region))
+            if geoid:
+                matched.setdefault(geoid, []).append(award)
+    return matched
+
+
+def all_awards(ctx: Context) -> list[Award]:
+    entry = sources_config()[SOURCE_ID]
+    manifest = json.loads(ctx.store.get_bytes(ctx.key(SOURCE_ID, "manifest.json")))
+    awards: list[Award] = []
+    for program, pages in manifest.items():
+        for page in pages:
+            if page["kind"] != "round":
+                continue
+            round_no = round_number(page["key"])
+            html = ctx.store.get_bytes(page["key"]).decode()
+            awards.extend(
+                parse_round_page(
+                    html,
+                    program=program,
+                    round_no=round_no,
+                    standard_award=int(entry["standard_awards"][program]),
+                    source_key=page["key"],
+                )
+            )
+    return awards
+
+
+def dri_metrics(ctx: Context) -> list[MetricRow]:
+    entry = sources_config()[SOURCE_ID]
+    years = entry["announcement_years"]
+    awards = all_awards(ctx)
+    matched = match_awards(awards, ctx)
+    manifest_key = ctx.key(SOURCE_ID, "manifest.json")
+    all_years = [y for program in years.values() for y in program.values()]
+    period = f"{min(all_years)}-{max(all_years)}"
+    rows: list[MetricRow] = []
+    for town in ctx.towns:
+        town_awards = sorted(
+            matched.get(town.geoid, []), key=lambda a: (years[a.program][str(a.round)], a.round)
+        )
+        latest = town_awards[-1] if town_awards else None
+        rows.append(
+            MetricRow(
+                geoid=town.geoid,
+                metric="dri_award_count",
+                period=period,
+                value=len(town_awards),
+                source_id=SOURCE_ID,
+                as_of=ctx.as_of,
+                r2_key=latest.source_key if latest else manifest_key,
+            )
+        )
+        rows.append(
+            MetricRow(
+                geoid=town.geoid,
+                metric="dri_award_amount",
+                period=period,
+                value=latest.amount if latest else 0,
+                source_id=SOURCE_ID,
+                as_of=ctx.as_of,
+                r2_key=latest.source_key if latest else manifest_key,
+            )
+        )
+        if latest:
+            rows.append(
+                MetricRow(
+                    geoid=town.geoid,
+                    metric="dri_award_year",
+                    period=period,
+                    value=years[latest.program][str(latest.round)],
+                    source_id=SOURCE_ID,
+                    as_of=ctx.as_of,
+                    r2_key=latest.source_key,
+                )
+            )
+    return rows
