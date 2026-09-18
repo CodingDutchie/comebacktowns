@@ -497,3 +497,29 @@ def test_coverage_gate(ctx):
     with pytest.raises(QAError) as exc:
         check_coverage(report)
     assert "dri_award_year" not in str(exc.value) and "broadband_100_share" in str(exc.value)
+
+
+def test_latest_snapshot_resolves_on_or_before_as_of(
+    local_store, popest_bytes, gazetteer_zip, scope
+):
+    from pipeline.transform import latest_snapshot, snapshot_dates
+
+    for date in ("2026-08-01", "2026-09-01", "2026-10-01"):
+        local_store.put_bytes(f"raw/zillow/{date}/zhvi_city.csv", b"RegionID\n")
+    assert snapshot_dates(local_store, "zillow") == ["2026-08-01", "2026-09-01", "2026-10-01"]
+    assert latest_snapshot(local_store, "zillow", "2026-09-15") == "2026-09-01"
+    assert latest_snapshot(local_store, "zillow", "2026-10-01") == "2026-10-01"
+    with pytest.raises(FileNotFoundError, match="no raw snapshot of zillow"):
+        latest_snapshot(local_store, "zillow", "2026-07-31")
+    with pytest.raises(FileNotFoundError, match="acs"):
+        latest_snapshot(local_store, "acs", "2026-09-15")
+
+
+def test_rows_carry_their_sources_snapshot_date(local_store, popest_bytes, gazetteer_zip, scope):
+    """A monthly run on 2026-10-05 reuses the September popest and stamps rows with it."""
+    towns = build_towns(popest_bytes, gazetteer_zip, scope)
+    local_store.put_bytes("raw/popest/2026-09-18/sub-est2024.csv", popest_bytes)
+    ctx = Context(store=local_store, as_of="2026-10-05", towns=towns)
+    rows = popest_metrics(ctx)
+    assert rows and all(r.as_of == "2026-09-18" for r in rows)
+    assert all(r.r2_key.startswith("raw/popest/2026-09-18/") for r in rows)

@@ -216,8 +216,16 @@ def towns_from_store(store: Any, as_of: str | None = None) -> list[Town]:
     from pipeline.ingest import gazetteer, popest
     from pipeline.ingest.base import normalise_as_of
     from pipeline.settings import scope_config
+    from pipeline.transform import latest_snapshot
 
     as_of_str = normalise_as_of(as_of)
-    popest_key = popest.fetch(as_of_str, store=store)
-    gaz_key = gazetteer.fetch(as_of_str, store=store)
-    return build_towns(store.get_bytes(popest_key), store.get_bytes(gaz_key), scope_config())
+    keys = {}
+    for source_id, module in (("popest", popest), ("gazetteer", gazetteer)):
+        try:
+            date = latest_snapshot(store, source_id, as_of_str)
+            keys[source_id] = module.fetch(date, store=store)
+        except FileNotFoundError:
+            keys[source_id] = module.fetch(as_of_str, store=store)
+    return build_towns(
+        store.get_bytes(keys["popest"]), store.get_bytes(keys["gazetteer"]), scope_config()
+    )

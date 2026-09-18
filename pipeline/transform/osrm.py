@@ -18,10 +18,11 @@ HOSPITAL_MINUTES = 20
 
 def osrm_metrics(ctx: Context) -> list[MetricRow]:
     keys = set(ctx.keys(SOURCE_ID))
-    period = ctx.as_of[:7]
+    snapshot = ctx.as_of_for(SOURCE_ID)
+    period = snapshot[:7]
     rows: list[MetricRow] = []
     for town in ctx.towns:
-        key = f"raw/{SOURCE_ID}/{ctx.as_of}/{town.geoid}.json"
+        key = f"raw/{SOURCE_ID}/{snapshot}/{town.geoid}.json"
         if key not in keys:
             continue
         document = json.loads(ctx.store.get_bytes(key))
@@ -48,7 +49,7 @@ def osrm_metrics(ctx: Context) -> list[MetricRow]:
                     period=period,
                     value=None if value is None else round(value, 1),
                     source_id=SOURCE_ID,
-                    as_of=ctx.as_of,
+                    as_of=ctx.as_of_for(SOURCE_ID),
                     r2_key=key,
                 )
             )
@@ -59,7 +60,8 @@ def crow_metrics(ctx: Context) -> list[MetricRow]:
     """Straight-line miles to NYC and the nearest hub, from Gazetteer coordinates."""
     dest = scope_config()["destinations"]
     key = ctx.keys("gazetteer")[0]
-    period = ctx.as_of[:4]
+    as_of = ctx.as_of_for("gazetteer")
+    period = as_of[:4]
     rows: list[MetricRow] = []
     for town in ctx.towns:
         nyc = haversine_miles(town.lat, town.lon, dest["nyc"]["lat"], dest["nyc"]["lon"])
@@ -72,7 +74,7 @@ def crow_metrics(ctx: Context) -> list[MetricRow]:
                     period=period,
                     value=round(value, 2),
                     source_id="gazetteer",
-                    as_of=ctx.as_of,
+                    as_of=as_of,
                     r2_key=key,
                 )
             )

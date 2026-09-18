@@ -8,6 +8,7 @@ import logging
 import sys
 from collections.abc import Sequence
 from pathlib import Path
+from typing import Any
 
 from pipeline.ingest.base import normalise_as_of
 from pipeline.ingest.registry import FEEDS, fetch_all, fetch_one
@@ -84,6 +85,8 @@ def cmd_transform(args: argparse.Namespace) -> int:
     as_of = normalise_as_of(args.as_of)
     towns = towns_from_store(store, as_of)
     rows = run_transforms(store, as_of, towns=towns, only=args.only or None)
+    dates = sorted({(r.source_id, r.as_of) for r in rows})
+    print("snapshots used: " + ", ".join(f"{s}={d}" for s, d in dates))
     try:
         validate_metrics(rows)
     except QAError as exc:
@@ -118,6 +121,22 @@ def cmd_transform(args: argparse.Namespace) -> int:
     return 0
 
 
+def read_metrics_csv(path: Path) -> list[dict[str, Any]]:
+    """Metric rows as written by ``transform --out``, typed like the D1 rows."""
+    rows: list[dict[str, Any]] = []
+    with path.open(newline="") as fh:
+        for row in csv.DictReader(fh):
+            rows.append(
+                {
+                    **row,
+                    "value": float(row["value"]) if row["value"] not in ("", None) else None,
+                    "moe": float(row["moe"]) if row["moe"] not in ("", None) else None,
+                    "suppressed": int(row["suppressed"] or 0),
+                }
+            )
+    return rows
+
+
 def cmd_score(args: argparse.Namespace) -> int:
     from pipeline.load.d1 import D1Client
     from pipeline.load.scores import load_scores, read_metrics, read_towns
@@ -129,7 +148,12 @@ def cmd_score(args: argparse.Namespace) -> int:
 
     d1 = D1Client.from_env()
     towns = [Town(**row) for row in read_towns(d1)]
-    scores = score_all(towns, read_metrics(d1), version=args.config_version)
+    if args.metrics_csv:
+        metric_rows = read_metrics_csv(Path(args.metrics_csv))
+        log.info("score: %d metric rows from %s", len(metric_rows), args.metrics_csv)
+    else:
+        metric_rows = read_metrics(d1)
+    scores = score_all(towns, metric_rows, version=args.config_version)
     by_geoid = {t.geoid: t for t in towns}
     if args.explain:
         town = next((t for t in towns if args.explain in (t.geoid, t.slug)), None)
@@ -219,6 +243,9 @@ def build_parser() -> argparse.ArgumentParser:
     score.add_argument("--out", help="also write the scores as CSV to this path")
     score.add_argument(
         "--no-pilot", action="store_true", help="proceed when seed/pilot_v0.csv is missing"
+    )
+    score.add_argument(
+        "--metrics-csv", help="score from a transform --out file instead of the D1 metrics table"
     )
     score.set_defaults(func=cmd_score)
 

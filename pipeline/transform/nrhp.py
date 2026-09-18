@@ -36,7 +36,7 @@ def nrhp_metrics(ctx: Context) -> list[MetricRow]:
         if geom is not None:
             districts.append(geom)
     places = place_geometries(ctx)
-    period = ctx.as_of[:4]
+    period = ctx.as_of_for(SOURCE_ID)[:4]
     rows: list[MetricRow] = []
     for town in ctx.towns:
         place = places[town.geoid]
@@ -52,7 +52,7 @@ def nrhp_metrics(ctx: Context) -> list[MetricRow]:
                     period=period,
                     value=value,
                     source_id=SOURCE_ID,
-                    as_of=ctx.as_of,
+                    as_of=ctx.as_of_for(SOURCE_ID),
                     r2_key=key,
                 )
             )

@@ -1,0 +1,44 @@
+name: refresh-annual
+
+# Annual feeds (ACS, permits, population estimates, historic districts, rail, hospitals,
+# routing, downtown awards), then rescore and republish. Mid-January, after the Census
+# releases the December ACS 5-year vintage. Same validate-then-load rule as the monthly run.
+on:
+  schedule:
+    - cron: "0 9 15 1 *" # 15 January, 09:00 UTC
+  workflow_dispatch:
+    inputs:
+      skip_pilot:
+        description: "Score without seed/pilot_v0.csv (QA rule 4). Only for a manual run."
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: refresh-annual
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    uses: ./.github/workflows/refresh.yml
+    with:
+      sources: "gazetteer popest tiger acs permits nrhp rail hospitals osrm dri"
+      skip_pilot: ${{ github.event_name == 'workflow_dispatch' && inputs.skip_pilot || false }}
+      workflow_name: refresh-annual
+    secrets: inherit
+  publish:
+    needs: refresh
+    uses: ./.github/workflows/publish.yml
+    secrets: inherit
+  report-failure:
+    needs: [refresh, publish]
+    if: failure()
+    uses: ./.github/workflows/report-failure.yml
+    with:
+      workflow_name: refresh-annual
+      failed_source: ${{ needs.refresh.outputs.failed_source }}
+      failed_step: ${{ needs.refresh.outputs.failed_step }}
+    secrets: inherit

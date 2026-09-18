@@ -66,7 +66,7 @@ def load_stations(ctx: Context) -> list[dict[str, Any]]:
 
 def rail_metrics(ctx: Context) -> list[MetricRow]:
     stations = load_stations(ctx)
-    period = ctx.as_of[:4]
+    period = ctx.as_of_for(SOURCE_ID)[:4]
     rows: list[MetricRow] = []
     for town in ctx.towns:
         miles, station = nearest(town.lat, town.lon, stations, 1)[0]
@@ -77,7 +77,7 @@ def rail_metrics(ctx: Context) -> list[MetricRow]:
                 period=period,
                 value=round(miles, 2),
                 source_id=SOURCE_ID,
-                as_of=ctx.as_of,
+                as_of=ctx.as_of_for(SOURCE_ID),
                 r2_key=station["r2_key"],
             )
         )

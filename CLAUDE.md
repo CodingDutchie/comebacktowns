@@ -129,3 +129,16 @@ applied with wrangler), `site/` (Astro 5, static), `worker/` (Phase 5 API), `tes
 - **Custom domain.** `comebacktowns.com` and `www.comebacktowns.com` are Workers custom
   domains declared in `wrangler.toml` (`routes`), created by `wrangler deploy`. Email routing
   for `data@` is separate and untouched.
+- **Automation (Phase 6).** `refresh-monthly.yml` (2nd of the month: gazetteer, popest,
+  tiger, zillow, osm) and `refresh-annual.yml` (15 January: those plus acs, permits, nrhp,
+  rail, hospitals, osrm, dri) call the reusable `refresh.yml`, which ingests one source at a
+  time, runs `transform --dry-run` and `score --dry-run --metrics-csv` first, and only then
+  loads metrics and scores; `publish.yml` (also on pushes to main touching the site) exports,
+  builds, deploys, purges the API's KV index and smoke-checks the live domain. Any failure
+  runs `report-failure.yml`, which opens or updates an issue labelled `refresh-failure`
+  naming the source or step, and nothing is published. Scheduled runs never skip QA rule 4:
+  until `seed/pilot_v0.csv` exists they stop at the scoring dry run with an issue; a manual
+  dispatch can pass `skip_pilot`.
+- **Snapshot resolution.** Each transform reads the latest snapshot of its own source on or
+  before the run date and stamps rows with that date, so a monthly run re-pulls only the
+  monthly feeds and every other figure keeps citing its most recent pull.

@@ -1,0 +1,76 @@
+name: publish
+
+# Export D1 -> site/data, build the site, deploy the Worker (site + API), purge the API's
+# KV index, and smoke-check the live domain. Runs on pushes to main that touch the site,
+# on manual dispatch, and as the final job of the refresh workflows.
+# Never actions/upload-artifact; nothing is committed; secrets come only from the environment.
+on:
+  workflow_dispatch:
+  workflow_call:
+  push:
+    branches: [main]
+    paths:
+      - "site/**"
+      - "worker/**"
+      - "config/**"
+      - "pipeline/export.py"
+      - "wrangler.toml"
+      - ".github/workflows/publish.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: publish
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+      - run: uv python install
+      - run: uv sync --all-groups
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: site/package-lock.json
+      - name: Check secrets are present (values are never printed)
+        run: |
+          for name in CLOUDFLARE_API_TOKEN CLOUDFLARE_ACCOUNT_ID; do
+            if [ -z "${!name}" ]; then echo "::error::$name is not set in repository secrets"; exit 1; fi
+          done
+      - name: Export site data from D1
+        run: uv run python -m pipeline.cli export
+      - name: Build site
+        working-directory: site
+        run: |
+          npm ci
+          npm run check
+          npm run build
+      - name: Deploy Worker (site + API)
+        run: npx --yes wrangler@4 deploy
+      - name: Purge the API index so it rebuilds from the new data
+        run: |
+          ns=$(python3 -c "import tomllib; print([k for k in tomllib.load(open('wrangler.toml','rb'))['kv_namespaces'] if k['binding']=='CACHE'][0]['id'])")
+          npx --yes wrangler@4 kv key delete --namespace-id "$ns" --remote "index:v1" || echo "index key not present"
+      - name: Smoke-check the live site
+        run: |
+          set -euo pipefail
+          domain=$(python3 -c "import yaml; print(yaml.safe_load(open('config/site.yml'))['SITE_DOMAIN'])")
+          for path in / /town/catskill-ny /methodology /api/health; do
+            code=$(curl -sS -o /dev/null -w "%{http_code}" "https://$domain$path")
+            echo "$path -> $code"
+            [ "$code" = "200" ] || { echo "::error::https://$domain$path returned $code"; exit 1; }
+          done
+          curl -sS "https://$domain/api/health"
+          echo
+          echo "Data generated: $(python3 -c "import json; print(json.load(open('site/data/meta.json'))['generated_at'])")"
