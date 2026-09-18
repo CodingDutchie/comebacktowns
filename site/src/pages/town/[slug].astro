@@ -1,0 +1,113 @@
+---
+import Base from "../../layouts/Base.astro";
+import Grade from "../../components/Grade.astro";
+import Figure from "../../components/Figure.astro";
+import FactorCard from "../../components/FactorCard.astro";
+import { band, bandKey, meta, methodology, metric, scores, sourceById, towns, type Town } from "../../lib/data";
+import { formatValue, label, population, pct, score1 } from "../../lib/format";
+
+export function getStaticPaths() {
+  return towns.map((t) => ({ params: { slug: t.slug }, props: { town: t } }));
+}
+const { town } = Astro.props as { town: Town };
+const score = scores[town.geoid];
+const m = (name: string) => metric(town.geoid, name);
+const permits = m("permit_units");
+const peers = towns
+  .filter((t) => t.region === town.region && bandKey(t) === bandKey(town) && scores[t.geoid])
+  .sort((a, b) => scores[b.geoid].readiness - scores[a.geoid].readiness);
+const extraMetrics = ["median_household_income", "vacancy_rate", "poverty_rate", "population_change", "permits_per_1k", "nrhp_district_count", "drive_min_regional_hub", "drive_min_nearest_hospital", "dri_award_count", "zhvi", "zori"];
+const provenance = new Map<string, { source: string; period: string; as_of: string; r2_key: string; metrics: string[] }>();
+for (const name of [...Object.keys(score?.inputs ?? {}), "median_home_value", "median_gross_rent", "drive_min_nyc", "osm_business_count", "permit_units", ...extraMetrics]) {
+  const e = m(methodology.metrics[name] ? name : name);
+  if (!e) continue;
+  const key = e.r2_key;
+  const p = provenance.get(key) ?? { source: sourceById.get(e.source_id)?.name ?? e.source_id, period: e.period, as_of: e.as_of, r2_key: key, metrics: [] };
+  if (!p.metrics.includes(label(name))) p.metrics.push(label(name));
+  provenance.set(key, p);
+}
+const title = `${town.name}, NY`;
+const description = score
+  ? `${town.name} (${town.legal_type}, ${town.county} County) scores ${score1(score.readiness)} readiness, grade ${score.grade ?? "not graded"}, on ${meta.site.SITE_NAME}.`
+  : `${town.name}, ${town.county} County, on ${meta.site.SITE_NAME}.`;
+const jsonLd = {
+  "@context": "https://schema.org",
+  "@type": "Place",
+  name: town.name,
+  url: new URL(`/town/${town.slug}`, Astro.site).toString(),
+  address: { "@type": "PostalAddress", addressLocality: town.name, addressRegion: "NY", addressCountry: "US" },
+  geo: { "@type": "GeoCoordinates", latitude: town.lat, longitude: town.lon },
+  containedInPlace: { "@type": "AdministrativeArea", name: `${town.county} County, New York` },
+};
+---
+<Base title={title} description={description} jsonLd={jsonLd}>
+  <p class="muted small"><a href="/towns">All towns</a> › {town.region} › {town.county} County</p>
+  <div class="hero">
+    <div>
+      <h1>{town.name} <span class="pill">{town.legal_type}</span></h1>
+      <p class="muted">{town.county} County · {town.region} · population {population(town.pop_latest)} ({town.pop_latest_year})</p>
+    </div>
+    <div class="score">
+      <Grade grade={score?.grade ?? null} big />
+      <div>
+        <div class="num">{score1(score?.readiness)}<span class="muted small"> / 100</span></div>
+        <div class="muted small">readiness · coverage {pct(score?.coverage)} · curved within band {band(town)}</div>
+        {score && !score.grade && <div class="small"><a href="/methodology#coverage">Why no grade?</a></div>}
+      </div>
+    </div>
+  </div>
+
+  <h2>Five numbers</h2>
+  <div class="cards">
+    <Figure name="median_home_value" entry={m("median_home_value")} secondary={{ name: "zhvi", entry: m("zhvi") }} />
+    <Figure name="median_gross_rent" entry={m("median_gross_rent")} secondary={{ name: "zori", entry: m("zori") }} />
+    <Figure name="drive_min_nyc" entry={m("drive_min_nyc")} />
+    <Figure name="osm_business_count" entry={m("osm_business_count")} />
+    <Figure name="permit_units" entry={permits} />
+  </div>
+
+  <h2>Six factors</h2>
+  <p class="muted small">Each factor is the mean of its usable inputs; a missing or suppressed input is left out and lowers coverage. Open a card for every input, its raw value, the curve applied and the points it contributes.</p>
+  {score ? methodology.factors.map((f) => <FactorCard factor={f.name} weight={f.weight} score={score} inputs={f.inputs} />) : <p class="notice">This town has not been scored yet.</p>}
+
+  <h2>More figures</h2>
+  <div class="cards">
+    {extraMetrics.filter((n) => m(n)).map((n) => <Figure name={n} entry={m(n)} />)}
+  </div>
+
+  <h2>Peers</h2>
+  <p class="muted small">{town.region} towns in the same population band ({band(town)}), by readiness.</p>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>#</th><th>Town</th><th class="num">Population</th><th>Grade</th><th class="num">Readiness</th><th class="num">Home value</th><th class="num">Drive to NYC</th></tr></thead>
+      <tbody>
+        {peers.map((t, i) => (
+          <tr class={t.geoid === town.geoid ? "me" : ""}>
+            <td>{i + 1}</td>
+            <td>{t.geoid === town.geoid ? t.name : <a href={`/town/${t.slug}`}>{t.name}</a>}</td>
+            <td class="num">{population(t.pop_latest)}</td>
+            <td><Grade grade={scores[t.geoid].grade} /></td>
+            <td class="num">{score1(scores[t.geoid].readiness)}</td>
+            <td class="num">{(() => { const e = metric(t.geoid, "median_home_value"); return e && e.value !== null && !e.suppressed ? formatValue("median_home_value", e.value) : "n/a"; })()}</td>
+            <td class="num">{(() => { const e = metric(t.geoid, "drive_min_nyc"); return e && e.value !== null ? formatValue("drive_min_nyc", e.value) : "n/a"; })()}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  </div>
+  <p class="small"><a href={`/compare?towns=${[town.slug, ...peers.filter((t) => t.geoid !== town.geoid).slice(0, 2).map((t) => t.slug)].join(",")}`}>Compare with the two nearest peers →</a></p>
+
+  <h2 id="sources">Sources for this page</h2>
+  <p class="muted small">Every figure above comes from one of these files, pulled on the date shown. The key is the exact snapshot in our archive.</p>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Source</th><th>Period</th><th>Pulled</th><th>Figures</th><th>Snapshot</th></tr></thead>
+      <tbody>
+        {[...provenance.values()].sort((a, b) => a.source.localeCompare(b.source)).map((p) => (
+          <tr><td>{p.source}</td><td>{p.period}</td><td>{p.as_of}</td><td class="small">{p.metrics.join(", ")}</td><td class="mono">{p.r2_key}</td></tr>
+        ))}
+      </tbody>
+    </table>
+  </div>
+  <p class="small muted">Score computed {score?.computed_at?.slice(0, 10)} with methodology {score?.config_version}. Something wrong? <a href="/about#corrections">Send a correction</a>.</p>
+</Base>

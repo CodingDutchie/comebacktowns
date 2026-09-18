@@ -1,0 +1,17 @@
+---
+import Base from "../layouts/Base.astro";
+import { meta } from "../lib/data";
+const site = meta.site;
+---
+<Base title="About" description={`Who makes ${site.SITE_NAME} and how to send a correction.`}>
+  <h1>About</h1>
+  <p class="lede">{site.SITE_NAME} is a public data site about small New York towns that could be on the way back, built for three readers: people considering a move, small investors, and the officials who run the towns.</p>
+  <h2>The claim</h2>
+  <p>"This town is turning around, and here is the evidence." Everyone else sells the town. This site also says when one is stalling, and that is only honest if every number carries its source and its date. So they do.</p>
+  <h2>Who makes it</h2>
+  <p>{site.SITE_NAME} is an independent project. It is not affiliated with any municipality, developer or broker, and it takes no listings.</p>
+  <h2 id="corrections">Corrections</h2>
+  <p>If a figure is wrong, the fastest fix is an email to <a href={`mailto:${site.CONTACT_EMAIL}`}>{site.CONTACT_EMAIL}</a> naming the town, the figure and what it should be, with a source if you have one. Every figure links to the snapshot it came from, so a correction can be traced to the file.</p>
+  <h2>What is next</h2>
+  <p>Readiness is the first score. Momentum, whether anything is actually happening, comes next, with migration, vacancy and price and permit trends.</p>
+</Base>

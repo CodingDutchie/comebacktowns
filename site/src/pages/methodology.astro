@@ -1,0 +1,89 @@
+---
+import Base from "../layouts/Base.astro";
+import { factorBlurbs, factorLabels, meta, methodology, sources } from "../lib/data";
+import { label, describe } from "../lib/format";
+const site = meta.site;
+const bands = Object.entries(methodology.grading.bands).sort((a, b) => b[1] - a[1]);
+const jsonLd = {
+  "@context": "https://schema.org",
+  "@type": "Dataset",
+  name: `${site.SITE_NAME} readiness dataset`,
+  description: `Readiness scores, grades and every input metric with source and as-of date for ${meta.town_count} New York cities and villages.`,
+  url: new URL("/methodology", Astro.site).toString(),
+  license: "https://creativecommons.org/licenses/by/4.0/",
+  creator: { "@type": "Organization", name: site.SITE_NAME, url: `https://${site.SITE_DOMAIN}` },
+  dateModified: meta.generated_at.slice(0, 10),
+  spatialCoverage: "Hudson Valley, Capital Region and Mohawk Valley, New York, USA",
+  distribution: [{ "@type": "DataDownload", encodingFormat: "text/csv", contentUrl: new URL("/downloads/comebacktowns-dataset.csv", Astro.site).toString() }],
+  isBasedOn: sources.map((s) => s.url).filter(Boolean),
+};
+---
+<Base title="Methodology" description="How the readiness score works: weights, every curve, suppression rules and the dataset download." jsonLd={jsonLd}>
+  <h1>Methodology</h1>
+  <p class="lede">Readiness asks one question: are the ingredients for a revival present? It is slow-moving and graded A to F. This page is written so a town official can argue with it, line by line.</p>
+
+  <h2 id="download">The dataset</h2>
+  <p><a href="/downloads/comebacktowns-dataset.csv">Download the full dataset (CSV)</a>: one row per town with every metric, its period and suppression flag, and the score. Licensed <a href="https://creativecommons.org/licenses/by/4.0/">CC BY 4.0</a>; the underlying sources keep their own terms, listed on <a href="/sources">Sources</a>. Generated {meta.generated_at.slice(0, 10)} with methodology version {methodology.version}.</p>
+
+  <h2 id="factors">Six factors and their weights</h2>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Factor</th><th class="num">Weight</th><th>What it asks</th><th>Inputs</th></tr></thead>
+      <tbody>
+        {methodology.factors.map((f) => (
+          <tr>
+            <td><strong>{factorLabels[f.name]}</strong></td>
+            <td class="num">{Math.round(f.weight * 100)}%</td>
+            <td>{factorBlurbs[f.name]}</td>
+            <td class="small">{f.inputs.map((i) => label(i.metric)).join(", ")}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  </div>
+  <p>A factor's score is the mean of its usable inputs, each normalised to 0–1 by the curve below. Readiness is the weighted sum of factor scores, on a 0–100 scale, renormalised over the factors that have at least one usable input.</p>
+
+  <h2 id="curves">Every curve</h2>
+  <p>Each input passes through one named curve. If a curve cannot be explained in a sentence it is wrong, so here is the sentence.</p>
+  {methodology.factors.map((f) => (
+    <section>
+      <h3>{factorLabels[f.name]}</h3>
+      <ul>
+        {f.inputs.map((i) => (
+          <li>
+            <strong>{label(i.metric)}</strong> <span class="muted small">({describe(i.metric)})</span><br />
+            {i.context_only ? <span class="muted">Used as the denominator for price headroom; it has no curve of its own.</span> : i.curve}
+            {i.conditional && <span class="muted"> Only applies to towns that have won an award; its absence does not reduce coverage.</span>}
+          </li>
+        ))}
+      </ul>
+    </section>
+  ))}
+
+  <h2 id="grades">Grades</h2>
+  <p>Grades are curved within population bands, because Census sample quality differs sharply between small villages and cities. Towns under {methodology.grading.population_band_split.toLocaleString("en-US")} residents are ranked against each other; towns at or above it likewise. Within a band the percentile cut-offs are:</p>
+  <ul>{bands.map(([g, p]) => <li><strong>{g}</strong>: {p === 0 ? "everything below the D cut-off" : `${p}th percentile and above`}</li>)}</ul>
+
+  <h2 id="coverage">Coverage and missing inputs</h2>
+  <p id="missing">A missing input never scores zero. It is left out of its factor, and the town's <em>coverage</em> (usable inputs over applicable inputs) drops. Below {Math.round(methodology.min_coverage * 100)}% coverage the page is published with its data and <strong>no grade</strong>, because a grade on that little evidence would be a guess.</p>
+
+  <h2 id="suppression">Suppression</h2>
+  <p>{methodology.suppression.text}</p>
+  <p>A suppressed value is not the same as a missing one: the estimate exists but its margin of error is too wide to stand on. The site says "not available at this sample size" for the first and "not available" for the second, and never shows a zero for either.</p>
+
+  <h2 id="bounds">Sanity bounds</h2>
+  <p>Before anything is published, every metric is checked against a wide sanity range; a value outside it stops the run rather than publishing a unit or parsing mistake.</p>
+  <details><summary class="muted">Show the ranges</summary>
+    <div class="table-wrap"><table><thead><tr><th>Metric</th><th class="num">Low</th><th class="num">High</th></tr></thead><tbody>
+      {Object.entries(methodology.bounds).map(([k, [lo, hi]]) => <tr><td>{label(k)}</td><td class="num">{lo}</td><td class="num">{hi}</td></tr>)}
+    </tbody></table></div>
+  </details>
+
+  <h2 id="known-limits">Known limits</h2>
+  <ul>
+    <li>Broadband is a subscription share from the Census, not a speed tier; open speed data sits behind a login we do not use.</li>
+    <li>Drive times are off-peak routed estimates over OpenStreetMap; straight-line distances are kept as separate figures and never substituted.</li>
+    <li>State downtown awards are read from ny.gov program pages; an amount is taken from the page only when it matches a size the programs actually pay, otherwise the program's standard award is recorded.</li>
+    <li>Zillow does not cover every village. Where it does not, the figure is missing, not estimated.</li>
+  </ul>
+</Base>

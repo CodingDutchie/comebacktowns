@@ -173,6 +173,15 @@ def cmd_score(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_export(args: argparse.Namespace) -> int:
+    from pipeline.export import export_site_data
+    from pipeline.load.d1 import D1Client
+
+    counts = export_site_data(D1Client.from_env(), version=args.config_version)
+    print(f"export: {counts}")
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="python -m pipeline.cli")
     parser.add_argument("-v", "--verbose", action="store_true")
@@ -212,6 +221,10 @@ def build_parser() -> argparse.ArgumentParser:
         "--no-pilot", action="store_true", help="proceed when seed/pilot_v0.csv is missing"
     )
     score.set_defaults(func=cmd_score)
+
+    export = sub.add_parser("export", help="D1 -> site/data/*.json and the dataset download")
+    export.add_argument("--config-version", default="v1")
+    export.set_defaults(func=cmd_export)
     return parser
 
 

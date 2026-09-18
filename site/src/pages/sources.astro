@@ -1,0 +1,21 @@
+---
+import Base from "../layouts/Base.astro";
+import { sources } from "../lib/data";
+---
+<Base title="Sources" description="Every data feed behind the site, with licence, attribution and last pull date.">
+  <h1>Sources</h1>
+  <p class="lede">Every feed the site is built from. Each town page lists which of these files each of its figures came from.</p>
+  {sources.map((s) => (
+    <section>
+      <h2 id={s.id}>{s.name}</h2>
+      <ul class="plain small">
+        <li><strong>Publisher:</strong> {s.publisher}</li>
+        <li><strong>Used for:</strong> {s.used_for}</li>
+        <li><strong>Licence:</strong> {s.licence}</li>
+        <li><strong>Attribution:</strong> {s.attribution}</li>
+        <li><strong>Refresh:</strong> {s.cadence} · <strong>last pulled:</strong> {s.last_pull ?? "not yet used in a published figure"}</li>
+        <li class="mono">{s.url}</li>
+      </ul>
+    </section>
+  ))}
+</Base>

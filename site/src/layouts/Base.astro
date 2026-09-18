@@ -1,12 +1,14 @@
 ---
-import { site } from "../lib/site";
+import { meta } from "../lib/data";
 
 interface Props {
   title?: string;
   description?: string;
+  jsonLd?: Record<string, unknown>;
 }
-const { title, description = site.TAGLINE } = Astro.props;
-const fullTitle = title ? `${title} · ${site.SITE_NAME}` : site.SITE_NAME;
+const site = meta.site;
+const { title, description = site.TAGLINE, jsonLd } = Astro.props;
+const fullTitle = title ? `${title} · ${site.SITE_NAME}` : `${site.SITE_NAME} — readiness grades for New York towns`;
 const canonical = new URL(Astro.url.pathname, Astro.site);
 ---
 
@@ -19,34 +21,101 @@ const canonical = new URL(Astro.url.pathname, Astro.site);
     <title>{fullTitle}</title>
     <meta name="description" content={description} />
     <link rel="canonical" href={canonical} />
+    <link rel="sitemap" href="/sitemap-index.xml" />
+    <meta property="og:title" content={fullTitle} />
+    <meta property="og:description" content={description} />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content={canonical} />
+    {jsonLd && <script type="application/ld+json" set:html={JSON.stringify(jsonLd)} />}
     <style is:global>
       :root {
-        --bg: #fbfaf7;
-        --fg: #1c1b18;
-        --muted: #5f5b52;
-        --accent: #8a4b2f;
-        --rule: #e4dfd4;
+        --bg: #fbfaf7; --fg: #1c1b18; --muted: #5f5b52; --accent: #8a4b2f; --rule: #e4dfd4;
+        --card: #ffffff; --soft: #f1ede4;
+        --a: #2f6b3a; --b: #4f7d8a; --c: #8a7a2f; --d: #a8632a; --f: #9c3a3a;
         color-scheme: light dark;
       }
       @media (prefers-color-scheme: dark) {
-        :root { --bg: #16150f; --fg: #ece8de; --muted: #a49e90; --accent: #e0a072; --rule: #2e2b24; }
+        :root { --bg: #16150f; --fg: #ece8de; --muted: #a49e90; --accent: #e0a072; --rule: #2e2b24;
+                --card: #1e1d16; --soft: #26241c;
+                --a: #6fbf7c; --b: #7fb4c4; --c: #cbb857; --d: #e39a5b; --f: #e07777; }
       }
-      html { background: var(--bg); color: var(--fg); font: 17px/1.55 system-ui, -apple-system, "Segoe UI", sans-serif; }
+      * { box-sizing: border-box; }
+      html { background: var(--bg); color: var(--fg); font: 17px/1.55 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; -webkit-text-size-adjust: 100%; }
       body { margin: 0; }
-      main { max-width: 44rem; margin: 0 auto; padding: 0 1rem 4rem; }
-      header, footer { max-width: 44rem; margin: 0 auto; padding: 1rem; color: var(--muted); }
-      header { border-bottom: 1px solid var(--rule); }
-      footer { border-top: 1px solid var(--rule); font-size: .9rem; }
+      .wrap { max-width: 62rem; margin: 0 auto; padding: 0 1rem; }
+      header.site { border-bottom: 1px solid var(--rule); }
+      header.site .wrap { display: flex; flex-wrap: wrap; align-items: baseline; gap: .5rem 1.25rem; padding: .9rem 1rem; }
+      header.site a.brand { color: var(--fg); text-decoration: none; font-weight: 700; letter-spacing: -.01em; }
+      header.site nav a { color: var(--muted); text-decoration: none; margin-right: 1rem; font-size: .95rem; }
+      header.site nav a:hover { color: var(--accent); }
+      main { padding: 1.5rem 0 4rem; }
+      footer.site { border-top: 1px solid var(--rule); color: var(--muted); font-size: .9rem; padding: 1.25rem 0 2rem; }
       a { color: var(--accent); }
-      h1 { font-size: 2rem; line-height: 1.2; letter-spacing: -.01em; }
+      h1 { font-size: clamp(1.7rem, 4vw, 2.4rem); line-height: 1.15; letter-spacing: -.015em; margin: .2rem 0 .6rem; }
+      h2 { font-size: 1.35rem; margin: 2rem 0 .6rem; }
+      h3 { font-size: 1.05rem; margin: 1.2rem 0 .4rem; }
+      p.lede { font-size: 1.15rem; color: var(--muted); max-width: 42rem; }
+      .muted { color: var(--muted); }
+      .small { font-size: .85rem; }
+      .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .8rem; word-break: break-all; }
+      table { border-collapse: collapse; width: 100%; font-size: .95rem; }
+      th, td { text-align: left; padding: .45rem .5rem; border-bottom: 1px solid var(--rule); vertical-align: top; }
+      th { font-weight: 600; color: var(--muted); font-size: .85rem; text-transform: uppercase; letter-spacing: .04em; }
+      td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+      .table-wrap { overflow-x: auto; }
+      .grade { display: inline-flex; align-items: center; justify-content: center; min-width: 2.2rem; height: 2.2rem; padding: 0 .5rem; border-radius: .5rem; font-weight: 800; color: #fff; background: var(--muted); }
+      .grade.A { background: var(--a); } .grade.B { background: var(--b); } .grade.C { background: var(--c); } .grade.D { background: var(--d); } .grade.F { background: var(--f); }
+      .grade.none { background: var(--soft); color: var(--muted); font-weight: 600; font-size: .8rem; }
+      .grade.big { min-width: 3.6rem; height: 3.6rem; font-size: 1.8rem; border-radius: .75rem; }
+      .cards { display: grid; gap: .8rem; grid-template-columns: repeat(auto-fill, minmax(11rem, 1fr)); }
+      .card { background: var(--card); border: 1px solid var(--rule); border-radius: .75rem; padding: .9rem 1rem; }
+      .card .label { display: block; color: var(--muted); font-size: .85rem; }
+      .card .value { display: block; font-size: 1.45rem; font-weight: 700; letter-spacing: -.01em; margin: .1rem 0; }
+      .card .value.na { font-size: .95rem; font-weight: 500; color: var(--muted); }
+      .card .meta { display: block; color: var(--muted); font-size: .78rem; }
+      details.factor { background: var(--card); border: 1px solid var(--rule); border-radius: .75rem; padding: .6rem 1rem; margin: .6rem 0; }
+      details.factor summary { cursor: pointer; display: flex; flex-wrap: wrap; align-items: center; gap: .5rem 1rem; list-style: none; }
+      details.factor summary::-webkit-details-marker { display: none; }
+      details.factor summary .name { font-weight: 700; }
+      details.factor summary .weight { color: var(--muted); font-size: .85rem; }
+      .bar { flex: 1 1 8rem; height: .5rem; background: var(--soft); border-radius: 999px; overflow: hidden; min-width: 6rem; }
+      .bar span { display: block; height: 100%; background: var(--accent); }
+      .hero { display: flex; flex-wrap: wrap; gap: 1rem 2rem; align-items: flex-start; }
+      .hero .score { display: flex; gap: 1rem; align-items: center; }
+      .hero .score .num { font-size: 2.2rem; font-weight: 800; line-height: 1; }
+      .pill { display: inline-block; padding: .1rem .55rem; border-radius: 999px; background: var(--soft); color: var(--muted); font-size: .8rem; }
+      .notice { background: var(--soft); border-left: 4px solid var(--accent); padding: .7rem 1rem; border-radius: .4rem; margin: 1rem 0; }
+      input[type=search], input[type=text], select { font: inherit; padding: .55rem .7rem; border: 1px solid var(--rule); border-radius: .5rem; background: var(--card); color: var(--fg); min-width: 0; }
+      button { font: inherit; padding: .55rem .9rem; border-radius: .5rem; border: 1px solid var(--accent); background: var(--accent); color: #fff; cursor: pointer; }
+      form.search { display: flex; gap: .5rem; flex-wrap: wrap; margin: 1rem 0; }
+      form.search input { flex: 1 1 14rem; }
+      ul.plain { list-style: none; padding: 0; margin: 0; }
+      .two { display: grid; gap: 1.5rem; grid-template-columns: 1fr; }
+      @media (min-width: 48rem) { .two { grid-template-columns: 1fr 1fr; } }
+      tr.me td { background: var(--soft); font-weight: 600; }
     </style>
   </head>
   <body>
-    <header><a href="/">{site.SITE_NAME}</a></header>
-    <main><slot /></main>
-    <footer>
-      {site.SITE_NAME} · Every figure on this site names its source and as-of date. Corrections:
-      <a href={`mailto:${site.CONTACT_EMAIL}`}>{site.CONTACT_EMAIL}</a>
+    <header class="site">
+      <div class="wrap">
+        <a class="brand" href="/">{site.SITE_NAME}</a>
+        <nav>
+          <a href="/rankings/highest-readiness">Rankings</a>
+          <a href="/towns">All towns</a>
+          <a href="/compare">Compare</a>
+          <a href="/methodology">Methodology</a>
+          <a href="/sources">Sources</a>
+          <a href="/about">About</a>
+        </nav>
+      </div>
+    </header>
+    <main class="wrap"><slot /></main>
+    <footer class="site">
+      <div class="wrap">
+        {site.SITE_NAME} scores {meta.town_count} New York cities and villages on whether the ingredients for a revival are present.
+        Every figure names its source and as-of date. Corrections: <a href={`mailto:${site.CONTACT_EMAIL}`}>{site.CONTACT_EMAIL}</a>.
+        Data generated {meta.generated_at.slice(0, 10)}.
+      </div>
     </footer>
   </body>
 </html>
