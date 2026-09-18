@@ -1,16 +1,29 @@
 # Cloudflare bindings. Binding names and resource IDs only: the account ID and API token
 # come from the environment (CLOUDFLARE_ACCOUNT_ID, CLOUDFLARE_API_TOKEN) and are never
-# committed. Database and bucket IDs are not secrets.
+# committed. Database, bucket and namespace IDs are not secrets.
 #
-# One Worker serves the static Astro build (site/dist) and, from Phase 5, the /api/* routes.
-# Cloudflare has folded Pages into Workers static assets and wrangler no longer creates
-# Pages projects, so this replaces the Pages project named in BUILD_PLAN.md (see CLAUDE.md).
+# One Worker serves the static Astro build (site/dist) and the /api/* routes. Cloudflare
+# has folded Pages into Workers static assets and wrangler no longer creates Pages
+# projects, so this replaces the Pages project named in BUILD_PLAN.md (see CLAUDE.md).
 name = "comebacktowns"
+main = "worker/src/index.ts"
 compatibility_date = "2026-09-01"
+workers_dev = true
+
+routes = [
+  { pattern = "comebacktowns.com", custom_domain = true },
+  { pattern = "www.comebacktowns.com", custom_domain = true },
+]
+
+[vars]
+SITE_ORIGINS = "https://comebacktowns.com,https://www.comebacktowns.com,https://comebacktowns.edekoop.workers.dev"
+INDEX_TTL = "600"
 
 [assets]
 directory = "site/dist"
+binding = "ASSETS"
 not_found_handling = "404-page"
+run_worker_first = true
 
 [[d1_databases]]
 binding = "DB"
@@ -21,3 +34,7 @@ migrations_dir = "migrations"
 [[r2_buckets]]
 binding = "RAW"
 bucket_name = "comebacktowns-raw"
+
+[[kv_namespaces]]
+binding = "CACHE"
+id = "71c980ce6d104bf7be0135c8fd11fa6c"

@@ -26,12 +26,39 @@ const regions = [...new Set(towns.map((t) => t.region))].sort();
     <datalist id="town-names">{towns.map((t) => <option value={t.name} data-slug={t.slug}>{t.county} County</option>)}</datalist>
     <button type="submit">Go</button>
   </form>
+  <ul id="hits" class="plain" hidden></ul>
   <script is:inline>
-    // Progressive enhancement only: jump straight to a town page when the name matches.
-    document.getElementById("find").addEventListener("submit", (e) => {
-      const q = document.getElementById("q").value.trim().toLowerCase();
-      const opt = [...document.querySelectorAll("#town-names option")].find((o) => o.value.toLowerCase() === q);
-      if (opt) { e.preventDefault(); location.href = "/town/" + opt.dataset.slug; }
+    // Progressive enhancement: search-as-you-type against /api/search, with the datalist as
+    // the no-JS fallback. Content on this page never depends on it.
+    const q = document.getElementById("q");
+    const hits = document.getElementById("hits");
+    const form = document.getElementById("find");
+    let timer = null, last = "";
+    const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+    const render = (results) => {
+      hits.innerHTML = results.map((r) => `<li><a href="/town/${esc(r.slug)}">${esc(r.name)}</a> <span class="muted small">${esc(r.legal_type)}, ${esc(r.county)} County${r.grade ? ` · grade ${esc(r.grade)}` : ""}</span></li>`).join("");
+      hits.hidden = results.length === 0;
+    };
+    q.addEventListener("input", () => {
+      clearTimeout(timer);
+      const value = q.value.trim();
+      if (value.length < 2) { hits.hidden = true; return; }
+      timer = setTimeout(async () => {
+        last = value;
+        try {
+          const r = await fetch(`/api/search?q=${encodeURIComponent(value)}&limit=8`);
+          if (!r.ok) return;
+          const data = await r.json();
+          if (data.q === last) render(data.results);
+        } catch (_) { /* fall back to the datalist */ }
+      }, 120);
+    });
+    form.addEventListener("submit", (e) => {
+      const value = q.value.trim().toLowerCase();
+      const opt = [...document.querySelectorAll("#town-names option")].find((o) => o.value.toLowerCase() === value);
+      if (opt) { e.preventDefault(); location.href = "/town/" + opt.dataset.slug; return; }
+      const first = hits.querySelector("a");
+      if (first && !hits.hidden) { e.preventDefault(); location.href = first.getAttribute("href"); }
     });
   </script>
 
