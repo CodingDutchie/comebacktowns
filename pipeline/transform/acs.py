@@ -188,7 +188,7 @@ def acs_metrics(ctx: Context) -> list[MetricRow]:
                     moe=moe,
                     suppressed=suppress_if_wide(value, moe),
                     source_id=SOURCE_ID,
-                    as_of=ctx.as_of,
+                    as_of=ctx.as_of_for(SOURCE_ID),
                     r2_key=key,
                 )
             )
@@ -205,7 +205,7 @@ def acs_metrics(ctx: Context) -> list[MetricRow]:
                     moe=moe,
                     suppressed=suppress_if_wide(value, moe),
                     source_id=SOURCE_ID,
-                    as_of=ctx.as_of,
+                    as_of=ctx.as_of_for(SOURCE_ID),
                     r2_key=key,
                 )
             )
@@ -228,7 +228,7 @@ def acs_metrics(ctx: Context) -> list[MetricRow]:
                     moe=moe,
                     suppressed=suppress_if_wide(value, moe),
                     source_id=SOURCE_ID,
-                    as_of=ctx.as_of,
+                    as_of=ctx.as_of_for(SOURCE_ID),
                     r2_key=key,
                 )
             )
@@ -251,7 +251,7 @@ def acs_metrics(ctx: Context) -> list[MetricRow]:
                 moe=c_moe,
                 suppressed=suppress_if_wide(c_value, c_moe),
                 source_id=SOURCE_ID,
-                as_of=ctx.as_of,
+                as_of=ctx.as_of_for(SOURCE_ID),
                 r2_key=county_key,
             )
         )
@@ -269,7 +269,7 @@ def acs_metrics(ctx: Context) -> list[MetricRow]:
                     moe=m_moe,
                     suppressed=suppress_if_wide(m_value, m_moe),
                     source_id=SOURCE_ID,
-                    as_of=ctx.as_of,
+                    as_of=ctx.as_of_for(SOURCE_ID),
                     r2_key=cbsa_key,
                 )
             )
@@ -284,7 +284,7 @@ def acs_metrics(ctx: Context) -> list[MetricRow]:
                 moe=m_moe,
                 suppressed=suppress_if_wide(m_value, m_moe),
                 source_id=SOURCE_ID,
-                as_of=ctx.as_of,
+                as_of=ctx.as_of_for(SOURCE_ID),
                 r2_key=m_key,
             )
         )

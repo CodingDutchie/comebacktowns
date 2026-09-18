@@ -270,7 +270,7 @@ def dri_metrics(ctx: Context) -> list[MetricRow]:
                 period=period,
                 value=len(town_awards),
                 source_id=SOURCE_ID,
-                as_of=ctx.as_of,
+                as_of=ctx.as_of_for(SOURCE_ID),
                 r2_key=latest.source_key if latest else manifest_key,
             )
         )
@@ -281,7 +281,7 @@ def dri_metrics(ctx: Context) -> list[MetricRow]:
                 period=period,
                 value=latest.amount if latest else 0,
                 source_id=SOURCE_ID,
-                as_of=ctx.as_of,
+                as_of=ctx.as_of_for(SOURCE_ID),
                 r2_key=latest.source_key if latest else manifest_key,
             )
         )
@@ -293,7 +293,7 @@ def dri_metrics(ctx: Context) -> list[MetricRow]:
                     period=period,
                     value=years[latest.program][str(latest.round)],
                     source_id=SOURCE_ID,
-                    as_of=ctx.as_of,
+                    as_of=ctx.as_of_for(SOURCE_ID),
                     r2_key=latest.source_key,
                 )
             )

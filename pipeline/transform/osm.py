@@ -15,10 +15,11 @@ def business_count(document: dict) -> int:
 
 def osm_metrics(ctx: Context) -> list[MetricRow]:
     keys = set(ctx.keys(SOURCE_ID))
-    period = ctx.as_of[:7]
+    snapshot = ctx.as_of_for(SOURCE_ID)
+    period = snapshot[:7]
     rows: list[MetricRow] = []
     for town in ctx.towns:
-        key = f"raw/{SOURCE_ID}/{ctx.as_of}/{town.geoid}.json"
+        key = f"raw/{SOURCE_ID}/{snapshot}/{town.geoid}.json"
         if key not in keys:
             continue
         count = business_count(json.loads(ctx.store.get_bytes(key)))
@@ -29,7 +30,7 @@ def osm_metrics(ctx: Context) -> list[MetricRow]:
                 period=period,
                 value=count,
                 source_id=SOURCE_ID,
-                as_of=ctx.as_of,
+                as_of=ctx.as_of_for(SOURCE_ID),
                 r2_key=key,
             )
         )
@@ -41,7 +42,7 @@ def osm_metrics(ctx: Context) -> list[MetricRow]:
                     period=period,
                     value=count / (town.pop_latest / 1000),
                     source_id=SOURCE_ID,
-                    as_of=ctx.as_of,
+                    as_of=ctx.as_of_for(SOURCE_ID),
                     r2_key=key,
                 )
             )

@@ -1,0 +1,79 @@
+name: refresh
+
+# Reusable: ingest the named sources, validate the whole pipeline dry, then load.
+# Outputs name the failing source or step so the caller can open a precise issue.
+on:
+  workflow_call:
+    inputs:
+      sources:
+        type: string
+        required: true
+      skip_pilot:
+        type: boolean
+        default: false
+      workflow_name:
+        type: string
+        required: true
+    outputs:
+      failed_source:
+        value: ${{ jobs.refresh.outputs.failed_source }}
+      failed_step:
+        value: ${{ jobs.refresh.outputs.failed_step }}
+
+permissions:
+  contents: read
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 150
+    outputs:
+      failed_source: ${{ steps.ingest.outputs.failed_source }}
+      failed_step: ${{ steps.mark.outputs.failed_step }}
+    env:
+      CENSUS_API_KEY: ${{ secrets.CENSUS_API_KEY }}
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+      - run: uv python install
+      - run: uv sync --all-groups
+      - name: Check secrets are present (values are never printed)
+        run: |
+          for name in CENSUS_API_KEY CLOUDFLARE_API_TOKEN CLOUDFLARE_ACCOUNT_ID; do
+            if [ -z "${!name}" ]; then echo "::error::$name is not set in repository secrets"; exit 1; fi
+          done
+      - name: Ingest (one source at a time, so a failure names its source)
+        id: ingest
+        run: |
+          set -uo pipefail
+          for source in ${{ inputs.sources }}; do
+            echo "::group::ingest $source"
+            if ! uv run python -m pipeline.cli ingest "$source"; then
+              echo "::endgroup::"
+              echo "failed_source=$source" >> "$GITHUB_OUTPUT"
+              echo "::error::ingest of $source failed; nothing was published"
+              exit 1
+            fi
+            echo "::endgroup::"
+          done
+      - name: Transform (dry run, QA rules 1/3/5 and the coverage gate)
+        id: transform_dry
+        run: uv run python -m pipeline.cli transform --dry-run --out metrics.csv
+      - name: Score (dry run, QA rule 4)
+        id: score_dry
+        run: uv run python -m pipeline.cli score --dry-run --metrics-csv metrics.csv ${{ inputs.skip_pilot && '--no-pilot' || '' }}
+      - name: Load metrics
+        id: load_metrics
+        run: uv run python -m pipeline.cli transform
+      - name: Load scores
+        id: load_scores
+        run: uv run python -m pipeline.cli score ${{ inputs.skip_pilot && '--no-pilot' || '' }}
+      - name: Note which step failed
+        id: mark
+        if: failure()
+        run: |
+          echo "failed_step=${{ steps.load_scores.outcome == 'failure' && 'load_scores' || steps.load_metrics.outcome == 'failure' && 'load_metrics' || steps.score_dry.outcome == 'failure' && 'score_dry' || steps.transform_dry.outcome == 'failure' && 'transform_dry' || steps.ingest.outcome == 'failure' && 'ingest' || 'setup' }}" >> "$GITHUB_OUTPUT"

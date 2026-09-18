@@ -97,9 +97,13 @@ applied with wrangler), `site/` (Astro 5, static), `worker/` (Phase 5 API), `tes
   estimates is always wider than the small change itself at village scale. The rule is kept;
   the owner swapped the services input for `under_18_share` (B09001 over B01003, a level
   that clears the rule) before v1 was ever published. The trend rows are still produced.
-  `pre1940_share` clears the rule for 88.5% of towns, just under the 90% coverage floor.
+  `pre1940_share` and `under_18_share` clear the rule for 88.5% of towns, so the coverage
+  floor in `config/qa.yml` is 85% (the plan's 90% would fail every scheduled refresh on ACS
+  sample noise; 85% still catches a feed that drops out).
 - **`transform --allow-low-coverage`** writes rows even when the coverage gate fails; the
-  gate itself (`config/qa.yml`) stays at 90% so the shortfall is printed on every run.
+  shortfall is printed on every run either way.
+- **Outbound HTTP is pinned to IPv4** (`make_client` binds `0.0.0.0`): a GitHub runner
+  reached Overpass over IPv6 without a route and the run died with "Network is unreachable".
 - **Scoring (Phase 3).** Weights and grade bands live in `config/scoring.v1.yml`; the curves
   live in code (`pipeline/score/curves.py`, `CURVES_V1`), each a named object whose
   `describe()` sentence feeds the methodology page. A factor is the mean of its usable
@@ -129,3 +133,16 @@ applied with wrangler), `site/` (Astro 5, static), `worker/` (Phase 5 API), `tes
 - **Custom domain.** `comebacktowns.com` and `www.comebacktowns.com` are Workers custom
   domains declared in `wrangler.toml` (`routes`), created by `wrangler deploy`. Email routing
   for `data@` is separate and untouched.
+- **Automation (Phase 6).** `refresh-monthly.yml` (2nd of the month: gazetteer, popest,
+  tiger, zillow, osm) and `refresh-annual.yml` (15 January: those plus acs, permits, nrhp,
+  rail, hospitals, osrm, dri) call the reusable `refresh.yml`, which ingests one source at a
+  time, runs `transform --dry-run` and `score --dry-run --metrics-csv` first, and only then
+  loads metrics and scores; `publish.yml` (also on pushes to main touching the site) exports,
+  builds, deploys, purges the API's KV index and smoke-checks the live domain. Any failure
+  runs `report-failure.yml`, which opens or updates an issue labelled `refresh-failure`
+  naming the source or step, and nothing is published. Scheduled runs never skip QA rule 4:
+  until `seed/pilot_v0.csv` exists they stop at the scoring dry run with an issue; a manual
+  dispatch can pass `skip_pilot`.
+- **Snapshot resolution.** Each transform reads the latest snapshot of its own source on or
+  before the run date and stamps rows with that date, so a monthly run re-pulls only the
+  monthly feeds and every other figure keeps citing its most recent pull.

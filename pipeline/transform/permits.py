@@ -86,7 +86,7 @@ def permits_metrics(ctx: Context, window: int = 3) -> list[MetricRow]:
                     period=str(entry.year),
                     value=entry.units,
                     source_id=SOURCE_ID,
-                    as_of=ctx.as_of,
+                    as_of=ctx.as_of_for(SOURCE_ID),
                     r2_key=entry.r2_key,
                 )
             )
@@ -97,7 +97,7 @@ def permits_metrics(ctx: Context, window: int = 3) -> list[MetricRow]:
                     period=str(entry.year),
                     value=entry.months_reported,
                     source_id=SOURCE_ID,
-                    as_of=ctx.as_of,
+                    as_of=ctx.as_of_for(SOURCE_ID),
                     r2_key=entry.r2_key,
                 )
             )
@@ -115,7 +115,7 @@ def permits_metrics(ctx: Context, window: int = 3) -> list[MetricRow]:
                 value=mean_units / (town.pop_latest / 1000),
                 suppressed=suppressed,
                 source_id=SOURCE_ID,
-                as_of=ctx.as_of,
+                as_of=ctx.as_of_for(SOURCE_ID),
                 r2_key=recent[-1].r2_key,
             )
         )

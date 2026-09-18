@@ -30,7 +30,13 @@ def user_agent() -> str:
 
 def make_client(timeout: httpx.Timeout = DEFAULT_TIMEOUT, **kwargs: Any) -> httpx.Client:
     headers = {"User-Agent": user_agent(), **kwargs.pop("headers", {})}
-    return httpx.Client(headers=headers, timeout=timeout, follow_redirects=True, **kwargs)
+    # Bind to an IPv4 local address so dual-stack hosts (Overpass among them) are never
+    # reached over IPv6 from a runner without an IPv6 route ("Network is unreachable").
+    # (S104 is about listening sockets; this is the source address of outbound connections.)
+    transport = kwargs.pop("transport", None) or httpx.HTTPTransport(local_address="0.0.0.0")  # noqa: S104
+    return httpx.Client(
+        headers=headers, timeout=timeout, follow_redirects=True, transport=transport, **kwargs
+    )
 
 
 def _retry_after(response: httpx.Response | None, attempt: int, base: float) -> float:

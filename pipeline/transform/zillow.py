@@ -48,7 +48,7 @@ def zillow_metrics(ctx: Context) -> list[MetricRow]:
                     period=period,
                     value=value,
                     source_id=SOURCE_ID,
-                    as_of=ctx.as_of,
+                    as_of=ctx.as_of_for(SOURCE_ID),
                     r2_key=key,
                 )
             )

@@ -31,7 +31,7 @@ def popest_metrics(ctx: Context) -> list[MetricRow]:
                 period=str(latest_year),
                 value=latest,
                 source_id=SOURCE_ID,
-                as_of=ctx.as_of,
+                as_of=ctx.as_of_for(SOURCE_ID),
                 r2_key=key,
             )
         )
@@ -43,7 +43,7 @@ def popest_metrics(ctx: Context) -> list[MetricRow]:
                 period=f"2020-{latest_year}",
                 value=change,
                 source_id=SOURCE_ID,
-                as_of=ctx.as_of,
+                as_of=ctx.as_of_for(SOURCE_ID),
                 r2_key=key,
             )
         )
