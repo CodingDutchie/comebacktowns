@@ -118,6 +118,61 @@ def cmd_transform(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_score(args: argparse.Namespace) -> int:
+    from pipeline.load.d1 import D1Client
+    from pipeline.load.scores import load_scores, read_metrics, read_towns
+    from pipeline.qa.pilot import PilotFixtureMissingError, check_pilot, load_pilot
+    from pipeline.scope import Town
+    from pipeline.score.curves import CURVES
+    from pipeline.score.engine import SCORE_COLUMNS, explain, score_all
+    from pipeline.settings import scoring_config
+
+    d1 = D1Client.from_env()
+    towns = [Town(**row) for row in read_towns(d1)]
+    scores = score_all(towns, read_metrics(d1), version=args.config_version)
+    by_geoid = {t.geoid: t for t in towns}
+    if args.explain:
+        town = next((t for t in towns if args.explain in (t.geoid, t.slug)), None)
+        if town is None:
+            log.error("no town with geoid or slug %s", args.explain)
+            return 2
+        score = next(s for s in scores if s.geoid == town.geoid)
+        print(
+            explain(score, town, scoring_config(args.config_version), CURVES[args.config_version])
+        )
+        return 0
+    graded = sum(1 for s in scores if s.grade)
+    print(f"scored {len(scores)} towns, {graded} graded, {len(scores) - graded} without a grade")
+    for band in sorted({s.band for s in scores}):
+        members = [s for s in scores if s.band == band]
+        letters = {g: sum(1 for s in members if s.grade == g) for g in "ABCDF"}
+        print(f"  band {band:12s} n={len(members):3d} grades {letters}")
+    if args.out:
+        with Path(args.out).open("w", newline="") as fh:
+            writer = csv.writer(fh)
+            writer.writerow([*SCORE_COLUMNS, "slug", "band"])
+            for s in scores:
+                writer.writerow([*s.row(), by_geoid[s.geoid].slug, s.band])
+        log.info("score: wrote %s", args.out)
+    try:
+        for line in check_pilot(scores, {t.geoid: t.slug for t in towns}, load_pilot()):
+            print("  pilot " + line)
+    except PilotFixtureMissingError as exc:
+        log.error("%s", exc)
+        if not args.no_pilot:
+            log.error("QA rule 4 cannot run; pass --no-pilot to write scores regardless")
+            return 1
+    except QAError as exc:
+        log.error("%s", exc)
+        return 1
+    if args.dry_run:
+        print("dry run, nothing written to D1")
+        return 0
+    written = load_scores(scores, d1)
+    print(f"scores: {written} rows written for config {args.config_version}")
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="python -m pipeline.cli")
     parser.add_argument("-v", "--verbose", action="store_true")
@@ -145,6 +200,18 @@ def build_parser() -> argparse.ArgumentParser:
         "--allow-low-coverage", action="store_true", help="write even if the coverage gate fails"
     )
     transform.set_defaults(func=cmd_transform)
+
+    score = sub.add_parser("score", help="metrics -> readiness scores and grades -> D1")
+    score.add_argument("--config-version", default="v1")
+    score.add_argument(
+        "--explain", metavar="GEOID_OR_SLUG", help="print the audit trail for one town"
+    )
+    score.add_argument("--dry-run", action="store_true", help="score and validate, skip D1")
+    score.add_argument("--out", help="also write the scores as CSV to this path")
+    score.add_argument(
+        "--no-pilot", action="store_true", help="proceed when seed/pilot_v0.csv is missing"
+    )
+    score.set_defaults(func=cmd_score)
     return parser
 
 

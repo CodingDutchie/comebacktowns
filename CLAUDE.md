@@ -14,6 +14,9 @@ uv run python -m pipeline.cli ingest --all           # every feed -> R2 raw/{sou
 uv run python -m pipeline.cli ingest permits nrhp    # ...or named feeds; reruns are no-ops
 uv run python -m pipeline.cli transform --dry-run    # raw -> metrics rows, QA, coverage table
 uv run python -m pipeline.cli transform              # ...and upsert the metrics table in D1
+uv run python -m pipeline.cli score --explain catskill-ny   # full audit trail for one town
+uv run python -m pipeline.cli score --dry-run        # score + grade every town, run QA rule 4
+uv run python -m pipeline.cli score                  # ...and append a scores run to D1
 npx wrangler d1 migrations apply comebacktowns --remote   # schema, from migrations/
 cd site && npm ci && npm run build                   # Astro static build -> site/dist
 npx wrangler deploy                                  # site/dist (+ API later) as one Worker
@@ -95,3 +98,13 @@ applied with wrangler), `site/` (Astro 5, static), `worker/` (Phase 5 API), `tes
   `pre1940_share` clears the rule for 88.5% of towns, just under the 90% coverage floor.
 - **`transform --allow-low-coverage`** writes rows even when the coverage gate fails; the
   gate itself (`config/qa.yml`) stays at 90% so the shortfall is printed on every run.
+- **Scoring (Phase 3).** Weights and grade bands live in `config/scoring.v1.yml`; the curves
+  live in code (`pipeline/score/curves.py`, `CURVES_V1`), each a named object whose
+  `describe()` sentence feeds the methodology page. A factor is the mean of its usable
+  inputs; readiness is the weighted sum renormalised over factors that have any usable
+  input; coverage counts usable inputs over applicable ones (`dri_award_year` is only
+  applicable to award winners). Grades are percentile curves within the two population
+  bands; coverage under 60% means no grade. Every `score` run appends rows keyed on
+  `computed_at`, so history is kept.
+- **QA rule 4 cannot run** until `seed/pilot_v0.csv` exists (columns `geoid` or `slug`, and
+  `readiness`); `score --no-pilot` states that explicitly when writing without it.
