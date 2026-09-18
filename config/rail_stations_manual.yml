@@ -1,0 +1,15 @@
+# Metro-North's West-of-Hudson service (Port Jervis line) is operated by NJ Transit, whose
+# GTFS feed sits behind a developer registration, so these nine stations are transcribed
+# by hand from the MTA station pages (https://new.mta.info/agency/metro-north-railroad).
+# Every other station comes from the Amtrak and Metro-North feeds in config/sources.yml.
+source: MTA Metro-North Railroad station pages, transcribed 2026-09
+stations:
+  - {name: Port Jervis, line: Port Jervis, lat: 41.3748, lon: -74.6926}
+  - {name: Otisville, line: Port Jervis, lat: 41.4728, lon: -74.5397}
+  - {name: Middletown-Town of Wallkill, line: Port Jervis, lat: 41.4571, lon: -74.3852}
+  - {name: Campbell Hall, line: Port Jervis, lat: 41.4436, lon: -74.2668}
+  - {name: Salisbury Mills-Cornwall, line: Port Jervis, lat: 41.4367, lon: -74.1004}
+  - {name: Harriman, line: Port Jervis, lat: 41.2950, lon: -74.1508}
+  - {name: Tuxedo, line: Port Jervis, lat: 41.1949, lon: -74.1838}
+  - {name: Sloatsburg, line: Port Jervis, lat: 41.1568, lon: -74.1926}
+  - {name: Suffern, line: Port Jervis, lat: 41.1136, lon: -74.1508}

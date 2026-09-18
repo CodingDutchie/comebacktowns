@@ -1,0 +1,55 @@
+name: ingest
+
+# Manual runs of the raw-data ingest. Everything streams to R2; nothing is uploaded as an
+# Actions artifact (the account's artifact storage is full) and nothing is committed.
+# Logs are public: URLs are redacted by the pipeline and secrets are only ever read from
+# the environment. Scheduled monthly/annual runs arrive in Phase 6.
+on:
+  workflow_dispatch:
+    inputs:
+      sources:
+        description: "Space-separated source ids (see config/sources.yml), or 'all'"
+        required: true
+        default: "all"
+      as_of:
+        description: "ISO date for the snapshot key (blank = today)"
+        required: false
+        default: ""
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ingest
+  cancel-in-progress: false
+
+jobs:
+  ingest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    env:
+      CENSUS_API_KEY: ${{ secrets.CENSUS_API_KEY }}
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+      - run: uv python install
+      - run: uv sync --all-groups
+      - name: Check secrets are present (values are never printed)
+        run: |
+          for name in CENSUS_API_KEY CLOUDFLARE_API_TOKEN CLOUDFLARE_ACCOUNT_ID; do
+            if [ -z "${!name}" ]; then echo "::error::$name is not set in repository secrets"; exit 1; fi
+          done
+      - name: Ingest
+        run: |
+          set -euo pipefail
+          args=""
+          if [ -n "${{ inputs.as_of }}" ]; then args="--as-of ${{ inputs.as_of }}"; fi
+          if [ "${{ inputs.sources }}" = "all" ]; then
+            uv run python -m pipeline.cli ingest --all $args
+          else
+            uv run python -m pipeline.cli ingest ${{ inputs.sources }} $args
+          fi

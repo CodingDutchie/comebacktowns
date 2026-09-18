@@ -10,7 +10,7 @@ from collections.abc import Sequence
 from pathlib import Path
 
 from pipeline.ingest.base import normalise_as_of
-from pipeline.ingest.registry import FEEDS, fetch_all
+from pipeline.ingest.registry import FEEDS, fetch_all, fetch_one
 from pipeline.qa import QAError
 from pipeline.settings import scope_config
 from pipeline.storage import raw_store
@@ -31,10 +31,12 @@ def cmd_ingest(args: argparse.Namespace) -> int:
     keys = (
         fetch_all(args.as_of, store=store)
         if args.all
-        else {n: FEEDS[n](args.as_of, store=store) for n in names}
+        else {n: fetch_one(n, args.as_of, store=store) for n in names}
     )
-    for name, key in keys.items():
-        print(f"{name}\t{key}")
+    for name, source_keys in keys.items():
+        print(f"{name}\t{len(source_keys)} file(s)")
+        for key in source_keys[: args.show]:
+            print(f"\t{key}")
     return 0
 
 
@@ -81,6 +83,7 @@ def build_parser() -> argparse.ArgumentParser:
     ingest.add_argument("source", nargs="*", help="source ids from config/sources.yml")
     ingest.add_argument("--all", action="store_true")
     ingest.add_argument("--as-of", help="ISO date for the snapshot key (default: today)")
+    ingest.add_argument("--show", type=int, default=5, help="keys to print per source")
     ingest.set_defaults(func=cmd_ingest)
 
     scope = sub.add_parser("scope", help="build the in-scope town list and write the towns table")
