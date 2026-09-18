@@ -20,7 +20,8 @@ uv run python -m pipeline.cli score                  # ...and append a scores ru
 npx wrangler d1 migrations apply comebacktowns --remote   # schema, from migrations/
 uv run python -m pipeline.cli export                 # D1 -> site/data/*.json + dataset CSV
 cd site && npm ci && npm run check && npm run build  # Astro static build -> site/dist
-npx wrangler deploy                                  # site/dist (+ API later) as one Worker
+cd worker && npm ci && npm run check && npm test    # API worker (pure logic unit-tested)
+npx wrangler deploy                                  # site/dist + /api/* as one Worker
 ```
 
 Environment the pipeline reads (never defaults, never literals):
@@ -118,3 +119,13 @@ applied with wrangler), `site/` (Astro 5, static), `worker/` (Phase 5 API), `tes
   The dataset download is licensed CC BY 4.0 (owner to confirm); sources keep their own terms.
 - **Grades are published from a `score --no-pilot` run** until `seed/pilot_v0.csv` exists;
   the methodology version and computed-at stamp are on every town page.
+- **API (Phase 5).** `worker/src/index.ts` runs first for every request (`run_worker_first`):
+  redirects www to the apex, answers `/api/search`, `/api/filter`, `/api/compare` and
+  `/api/health`, and hands everything else to the static assets. The town index (towns +
+  latest scores run + latest headline facts) is built from D1 once and cached in KV
+  (`CACHE`, TTL `INDEX_TTL` seconds) with a per-isolate memo in front; responses carry
+  `Cache-Control` so the edge serves repeats. CORS reflects only origins in `SITE_ORIGINS`.
+  Pure search/filter/compare logic is in `worker/src/logic.ts` and unit-tested with vitest.
+- **Custom domain.** `comebacktowns.com` and `www.comebacktowns.com` are Workers custom
+  domains declared in `wrangler.toml` (`routes`), created by `wrangler deploy`. Email routing
+  for `data@` is separate and untouched.
