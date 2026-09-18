@@ -18,7 +18,8 @@ uv run python -m pipeline.cli score --explain catskill-ny   # full audit trail f
 uv run python -m pipeline.cli score --dry-run        # score + grade every town, run QA rule 4
 uv run python -m pipeline.cli score                  # ...and append a scores run to D1
 npx wrangler d1 migrations apply comebacktowns --remote   # schema, from migrations/
-cd site && npm ci && npm run build                   # Astro static build -> site/dist
+uv run python -m pipeline.cli export                 # D1 -> site/data/*.json + dataset CSV
+cd site && npm ci && npm run check && npm run build  # Astro static build -> site/dist
 npx wrangler deploy                                  # site/dist (+ API later) as one Worker
 ```
 
@@ -108,3 +109,12 @@ applied with wrangler), `site/` (Astro 5, static), `worker/` (Phase 5 API), `tes
   `computed_at`, so history is kept.
 - **QA rule 4 cannot run** until `seed/pilot_v0.csv` exists (columns `geoid` or `slug`, and
   `readiness`); `score --no-pilot` states that explicitly when writing without it.
+- **Site (Phase 4).** Astro reads `site/data/*.json` written by `pipeline.cli export`
+  (gitignored, rebuilt on every deploy); when absent it falls back to the committed
+  `site/sample-data/` fixture (six towns) so CI and fresh clones still build. Labels, units
+  and descriptions for every metric live in `config/metrics.yml`. Only `/compare` renders
+  content client-side (it must read `?towns=` from the address; the data comes from the
+  statically built `/data/compare.json`); every other page is static HTML with no content JS.
+  The dataset download is licensed CC BY 4.0 (owner to confirm); sources keep their own terms.
+- **Grades are published from a `score --no-pilot` run** until `seed/pilot_v0.csv` exists;
+  the methodology version and computed-at stamp are on every town page.

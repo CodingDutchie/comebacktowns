@@ -1,0 +1,5 @@
+---
+interface Props { grade: string | null; big?: boolean; }
+const { grade, big = false } = Astro.props;
+---
+{grade ? <span class:list={["grade", grade, { big }]} aria-label={`Grade ${grade}`}>{grade}</span> : <span class:list={["grade", "none", { big }]}>no grade</span>}

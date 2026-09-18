@@ -1,0 +1,42 @@
+---
+import { factorBlurbs, factorLabels, type Score } from "../lib/data";
+import { formatValue, label } from "../lib/format";
+
+interface Props { factor: string; weight: number; score: Score; inputs: { name: string; metric: string; context_only: boolean; curve: string | null }[]; }
+const { factor, weight, score, inputs } = Astro.props;
+const fs = score.factor_scores[factor];
+---
+<details class="factor">
+  <summary>
+    <span class="name">{factorLabels[factor] ?? factor}</span>
+    <span class="weight">weight {Math.round(weight * 100)}%</span>
+    <span class="bar" aria-hidden="true"><span style={`width:${fs === null || fs === undefined ? 0 : Math.round(fs * 100)}%`}></span></span>
+    <span class="num">{fs === null || fs === undefined ? <span class="muted small">no usable inputs</span> : `${(fs * 100).toFixed(0)} / 100`}</span>
+  </summary>
+  <p class="muted small">{factorBlurbs[factor]}</p>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Input</th><th class="num">Value</th><th class="num">Normalised</th><th class="num">Points</th><th>Period · source</th></tr></thead>
+      <tbody>
+        {inputs.map((inp) => {
+          const i = score.inputs[inp.name];
+          const metricName = inp.metric;
+          return (
+            <tr>
+              <td>{label(metricName)}{inp.curve && <><br /><span class="muted small">{inp.curve}</span></>}</td>
+              <td class="num">
+                {i?.status === "usable" || (inp.context_only && i?.value !== null && i?.value !== undefined && !i?.suppressed) ? formatValue(metricName, i.value) :
+                 i?.status === "suppressed" ? <a href="/methodology#suppression">not available at this sample size</a> :
+                 i?.status === "not_applicable" ? <span class="muted">not applicable</span> :
+                 <a href="/methodology#missing">not available</a>}
+              </td>
+              <td class="num">{inp.context_only ? <span class="muted">context</span> : i?.normalised === null || i?.normalised === undefined ? "—" : i.normalised.toFixed(2)}</td>
+              <td class="num">{i?.contribution === null || i?.contribution === undefined ? "—" : i.contribution.toFixed(1)}</td>
+              <td class="small muted">{i?.period ?? ""}{i?.source_id ? ` · ${i.source_id}` : ""}</td>
+            </tr>
+          );
+        })}
+      </tbody>
+    </table>
+  </div>
+</details>

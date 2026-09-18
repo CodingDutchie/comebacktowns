@@ -1,14 +1,75 @@
 ---
 import Base from "../layouts/Base.astro";
-import { site } from "../lib/site";
+import Grade from "../components/Grade.astro";
+import { bandKey, meta, scores, towns, usingSampleData } from "../lib/data";
+import { score1 } from "../lib/format";
+
+const site = meta.site;
+const graded = towns.filter((t) => scores[t.geoid]);
+const top = (key: "small" | "large") =>
+  graded.filter((t) => bandKey(t) === key).sort((a, b) => scores[b.geoid].readiness - scores[a.geoid].readiness).slice(0, 8);
+const regions = [...new Set(towns.map((t) => t.region))].sort();
 ---
 
 <Base>
-  <h1>{site.SITE_NAME}</h1>
-  <p>{site.TAGLINE}</p>
-  <p>
-    Readiness grades for about 150 cities and villages in the Hudson Valley, Capital Region and
-    Mohawk Valley are being built. Town pages, rankings and the methodology arrive with the
-    data pipeline.
+  <h1>Which New York towns are ready for a comeback?</h1>
+  <p class="lede">
+    {site.SITE_NAME} grades {meta.town_count} cities and villages in the Hudson Valley, Capital Region and Mohawk Valley on one
+    question: are the ingredients for a revival present? Access, building stock, main street, price headroom, services and
+    civic capacity, each from public data, each figure with its source and date.
   </p>
+  {usingSampleData && <p class="notice">This build uses the sample fixture: only {meta.town_count} towns are shown.</p>}
+
+  <form class="search" action="/towns" method="get" id="find">
+    <label for="q" class="muted">Find a town</label>
+    <input id="q" name="q" type="search" list="town-names" placeholder="Catskill, Hudson, Little Falls…" autocomplete="off" />
+    <datalist id="town-names">{towns.map((t) => <option value={t.name} data-slug={t.slug}>{t.county} County</option>)}</datalist>
+    <button type="submit">Go</button>
+  </form>
+  <script is:inline>
+    // Progressive enhancement only: jump straight to a town page when the name matches.
+    document.getElementById("find").addEventListener("submit", (e) => {
+      const q = document.getElementById("q").value.trim().toLowerCase();
+      const opt = [...document.querySelectorAll("#town-names option")].find((o) => o.value.toLowerCase() === q);
+      if (opt) { e.preventDefault(); location.href = "/town/" + opt.dataset.slug; }
+    });
+  </script>
+
+  <div class="two">
+    {(["small", "large"] as const).map((key) => (
+      <section>
+        <h2>{key === "small" ? "Villages and small cities (under 5,000)" : "Cities and larger villages (5,000+)"}</h2>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Town</th><th>Grade</th><th class="num">Readiness</th></tr></thead>
+            <tbody>
+              {top(key).map((t) => (
+                <tr>
+                  <td><a href={`/town/${t.slug}`}>{t.name}</a> <span class="muted small">{t.county}</span></td>
+                  <td><Grade grade={scores[t.geoid].grade} /></td>
+                  <td class="num">{score1(scores[t.geoid].readiness)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <p class="small"><a href="/rankings/highest-readiness">Full ranking →</a></p>
+      </section>
+    ))}
+  </div>
+
+  <h2>Rankings</h2>
+  <ul>
+    <li><a href="/rankings/highest-readiness">Highest readiness</a></li>
+    <li><a href="/rankings/price-headroom">Best price headroom</a></li>
+    <li><a href="/rankings/value-within-an-hour">Best value within an hour of a city</a></li>
+  </ul>
+
+  <h2>What this is not</h2>
+  <p>
+    A readiness grade says the ingredients are there. It does not say a revival is happening; that is the momentum score,
+    which comes next. Every competitor sells the town. This site also says when one is stalling, which only works if every
+    number carries its source, so <a href="/methodology">the methodology</a> is written for a town official to argue with.
+  </p>
+  <p class="muted small">Regions covered: {regions.join(", ")}. Missing figures are shown as missing, never as zero.</p>
 </Base>

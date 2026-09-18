@@ -1,0 +1,27 @@
+---
+/**
+ * One headline number. A suppressed value says so and links to the explanation; a missing
+ * value says so too. Never a blank, never a zero standing in for "unknown".
+ */
+import { sourceById, type MetricEntry } from "../lib/data";
+import { formatValue, label } from "../lib/format";
+
+interface Props { name: string; entry?: MetricEntry; secondary?: { name: string; entry?: MetricEntry }; }
+const { name, entry, secondary } = Astro.props;
+const src = entry ? sourceById.get(entry.source_id) : undefined;
+const sec = secondary?.entry;
+---
+<div class="card">
+  <span class="label">{label(name)}</span>
+  {entry && entry.value !== null && !entry.suppressed ? (
+    <span class="value">{formatValue(name, entry.value)}</span>
+  ) : entry && entry.suppressed ? (
+    <span class="value na"><a href="/methodology#suppression">Not available at this sample size</a></span>
+  ) : (
+    <span class="value na"><a href="/methodology#missing">Not available</a></span>
+  )}
+  {entry && <span class="meta">{src?.publisher ?? entry.source_id} · {entry.period}</span>}
+  {sec && sec.value !== null && !sec.suppressed && (
+    <span class="meta">{label(secondary!.name)}: {formatValue(secondary!.name, sec.value)} ({sec.period})</span>
+  )}
+</div>

@@ -1,0 +1,163 @@
+# How each metric is shown. `format` is one of money, percent, number, minutes, miles,
+# per_1k, year, flag. `key_number` orders the five headline figures on a town page.
+median_home_value:
+  label: Median home value
+  format: money
+  description: Median value of owner-occupied homes (ACS 5-year, B25077).
+  key_number: 1
+zhvi:
+  label: Zillow home value index
+  format: money
+  description: Zillow's typical home value for the place, latest month with a value.
+median_gross_rent:
+  label: Median gross rent
+  format: money
+  description: Median monthly gross rent (ACS 5-year, B25064).
+  key_number: 2
+zori:
+  label: Zillow observed rent
+  format: money
+  description: Zillow's typical asking rent for the place, latest month with a value.
+drive_min_nyc:
+  label: Drive to New York City
+  format: minutes
+  description: Routed driving time to Grand Central Terminal, off-peak (OSRM over OpenStreetMap).
+  key_number: 3
+osm_business_count:
+  label: Main street businesses
+  format: number
+  description: Shops, restaurants, offices, crafts and lodging mapped in OpenStreetMap inside the place boundary.
+  key_number: 4
+permit_units:
+  label: Housing units permitted
+  format: number
+  description: Residential units permitted in the year (Census Building Permits Survey).
+  key_number: 5
+median_household_income:
+  label: Median household income
+  format: money
+  description: ACS 5-year, B19013, in inflation-adjusted dollars.
+vacancy_rate:
+  label: Vacant housing share
+  format: percent
+  description: Vacant housing units over all units (ACS 5-year, B25002).
+pre1940_share:
+  label: Homes built before 1940
+  format: percent
+  description: Share of housing units built in 1939 or earlier (ACS 5-year, B25034).
+broadband_subscription_share:
+  label: Broadband subscription
+  format: percent
+  description: Households with a cable, fiber-optic or DSL subscription (ACS 5-year, B28002). Not a speed measure.
+broadband_100_share:
+  label: Broadband subscription
+  format: percent
+  description: Households with a cable, fiber-optic or DSL subscription (ACS 5-year, B28002). Not a speed measure.
+poverty_rate:
+  label: Poverty rate
+  format: percent
+  description: People below the poverty line (ACS 5-year, B17001).
+commute_60plus_share:
+  label: Commutes over an hour
+  format: percent
+  description: Workers whose commute is 60 minutes or more (ACS 5-year, B08303).
+k12_enrollment:
+  label: K-12 enrollment
+  format: number
+  description: Residents enrolled in nursery through grade 12 (ACS 5-year, B14001).
+population_under_18:
+  label: Residents under 18
+  format: number
+  description: ACS 5-year, B09001.
+population_total:
+  label: Population (ACS)
+  format: number
+  description: ACS 5-year total population, B01003.
+under_18_share:
+  label: Share under 18
+  format: percent
+  description: Residents under 18 over total population (ACS 5-year, B09001 / B01003).
+school_enrollment_trend:
+  label: K-12 enrollment change
+  format: percent
+  description: Change from 2015-2019 to 2020-2024 (ACS 5-year, non-overlapping periods).
+under_18_trend:
+  label: Under-18 population change
+  format: percent
+  description: Change from 2015-2019 to 2020-2024 (ACS 5-year, non-overlapping periods).
+county_median_home_value:
+  label: County median home value
+  format: money
+  description: ACS 5-year, B25077, for the county.
+cbsa_median_home_value:
+  label: Metro area median home value
+  format: money
+  description: ACS 5-year, B25077, for the metropolitan or micropolitan area.
+metro_median_home_value:
+  label: Metro median home value
+  format: money
+  description: The metro-area median where the town lies in one, otherwise the county median.
+population:
+  label: Population
+  format: number
+  description: Census Bureau population estimate.
+population_change:
+  label: Population change since 2020
+  format: percent
+  description: Census population estimates, 2020 base to the latest year.
+permit_months_reported:
+  label: Months reported
+  format: number
+  description: Months of permit data the place reported in the year.
+permits_per_1k:
+  label: Units permitted per 1,000 residents
+  format: per_1k
+  description: Three-year mean of units permitted, per 1,000 residents.
+nrhp_district_count:
+  label: Historic districts
+  format: number
+  description: National Register historic districts within the place boundary.
+has_nrhp_district:
+  label: Historic district present
+  format: flag
+  description: Whether a National Register historic district lies within the place.
+miles_to_rail_station:
+  label: Nearest rail station
+  format: miles
+  description: Straight-line distance to the nearest Amtrak or Metro-North station.
+osm_business_per_1k:
+  label: Businesses per 1,000 residents
+  format: per_1k
+  description: Mapped storefront businesses per 1,000 residents.
+drive_min_regional_hub:
+  label: Drive to nearest regional hub
+  format: minutes
+  description: Routed driving time to the nearest of Albany, Utica, Poughkeepsie, Kingston, Newburgh, Middletown or White Plains.
+drive_min_nearest_hospital:
+  label: Drive to nearest hospital
+  format: minutes
+  description: Routed driving time to the nearest hospital (NYS Department of Health list).
+hospital_within_20min:
+  label: Hospital within 20 minutes
+  format: flag
+  description: Whether the nearest hospital is a 20-minute drive or less.
+crow_miles_nyc:
+  label: Straight-line miles to NYC
+  format: miles
+  description: Great-circle distance to Grand Central Terminal.
+crow_miles_regional_hub:
+  label: Straight-line miles to nearest hub
+  format: miles
+  description: Great-circle distance to the nearest regional hub.
+dri_award_count:
+  label: State downtown awards
+  format: number
+  description: Downtown Revitalization Initiative and NY Forward awards won.
+dri_award_amount:
+  label: Latest downtown award
+  format: money
+  description: Amount of the most recent DRI or NY Forward award; zero when none.
+dri_award_year:
+  label: Latest award year
+  format: year
+  description: Year the most recent DRI or NY Forward round was announced.
