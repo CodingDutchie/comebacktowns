@@ -11,6 +11,7 @@ uv run ruff check . && uv run ruff format --check . && uv run mypy && uv run pyt
 uv run python -m pipeline.cli scope --dry-run        # build the town list, no writes
 uv run python -m pipeline.cli scope                  # ...and write the towns table in D1
 uv run python -m pipeline.cli ingest --all           # every feed -> R2 raw/{source}/{as_of}/
+uv run python -m pipeline.cli ingest permits nrhp    # ...or named feeds; reruns are no-ops
 npx wrangler d1 migrations apply comebacktowns --remote   # schema, from migrations/
 cd site && npm ci && npm run build                   # Astro static build -> site/dist
 npx wrangler deploy                                  # site/dist (+ API later) as one Worker
@@ -62,6 +63,20 @@ applied with wrangler), `site/` (Astro 5, static), `worker/` (Phase 5 API), `tes
   = SHA-256 of the token), so no extra secret is needed.
 - **`seed/pilot_v0.csv` is not in the repo.** Until the owner adds it, QA rule 4 (pilot
   regression) cannot run and Phase 3 cannot close.
-- **Scoring inputs without a feed** (`drive_min_*`, `school_enrollment_trend`,
-  `hospital_within_20min`, `broadband_100_share` as a speed tier): the Phase 1 feed list does
-  not produce these. Sources are proposed in the Phase 0 PR and need the owner's call.
+- **Feeds added beyond the plan's list** to cover every scoring input: `tiger` (place
+  polygons), `hospitals` (NYS DOH facility list), `osrm` (drive minutes to NYC, the nearest
+  regional hub and the nearest hospitals, one cached `table` call per town at the demo
+  server's 1 req/s), and the ACS tables B14001/B09001 at two non-overlapping vintages
+  (2015-2019 and 2020-2024) for `school_enrollment_trend`. `broadband_100_share` cannot be
+  sourced: the FCC broadband map's bulk files sit behind a login (403), so the metric will be
+  the ACS B28002 broadband *subscription* share and the methodology page will say so.
+- **Metro-North's West-of-Hudson stations** (Port Jervis line) are not in the MTA GTFS feed
+  and NJ Transit's requires a developer registration, so `config/rail_stations_manual.yml`
+  carries the nine stations transcribed from MTA station pages, with the source named.
+- **DRI/NY Forward is a scrape** of ny.gov program and round pages (HTML snapshotted to R2,
+  parsed by `pipeline/transform/dri.py`). Amounts come from the page only when they match a
+  size the programs actually award; otherwise the program's standard award is used and the
+  row says `program_standard`.
+- **Overpass and the Census API cannot be reached from the Claude Code container** (the
+  proxy drops Overpass; the Census API needs the key that lives in GitHub Secrets). Those
+  two feeds run through `.github/workflows/ingest.yml` (`workflow_dispatch`).
