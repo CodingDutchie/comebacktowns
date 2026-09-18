@@ -1,0 +1,23 @@
+# Cloudflare bindings. Binding names and resource IDs only: the account ID and API token
+# come from the environment (CLOUDFLARE_ACCOUNT_ID, CLOUDFLARE_API_TOKEN) and are never
+# committed. Database and bucket IDs are not secrets.
+#
+# One Worker serves the static Astro build (site/dist) and, from Phase 5, the /api/* routes.
+# Cloudflare has folded Pages into Workers static assets and wrangler no longer creates
+# Pages projects, so this replaces the Pages project named in BUILD_PLAN.md (see CLAUDE.md).
+name = "comebacktowns"
+compatibility_date = "2026-09-01"
+
+[assets]
+directory = "site/dist"
+not_found_handling = "404-page"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "comebacktowns"
+database_id = "2969d0ec-8dba-4af8-8a0b-2f6b1b955d50"
+migrations_dir = "migrations"
+
+[[r2_buckets]]
+binding = "RAW"
+bucket_name = "comebacktowns-raw"

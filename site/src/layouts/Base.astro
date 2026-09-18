@@ -1,0 +1,52 @@
+---
+import { site } from "../lib/site";
+
+interface Props {
+  title?: string;
+  description?: string;
+}
+const { title, description = site.TAGLINE } = Astro.props;
+const fullTitle = title ? `${title} · ${site.SITE_NAME}` : site.SITE_NAME;
+const canonical = new URL(Astro.url.pathname, Astro.site);
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light dark" />
+    <title>{fullTitle}</title>
+    <meta name="description" content={description} />
+    <link rel="canonical" href={canonical} />
+    <style is:global>
+      :root {
+        --bg: #fbfaf7;
+        --fg: #1c1b18;
+        --muted: #5f5b52;
+        --accent: #8a4b2f;
+        --rule: #e4dfd4;
+        color-scheme: light dark;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root { --bg: #16150f; --fg: #ece8de; --muted: #a49e90; --accent: #e0a072; --rule: #2e2b24; }
+      }
+      html { background: var(--bg); color: var(--fg); font: 17px/1.55 system-ui, -apple-system, "Segoe UI", sans-serif; }
+      body { margin: 0; }
+      main { max-width: 44rem; margin: 0 auto; padding: 0 1rem 4rem; }
+      header, footer { max-width: 44rem; margin: 0 auto; padding: 1rem; color: var(--muted); }
+      header { border-bottom: 1px solid var(--rule); }
+      footer { border-top: 1px solid var(--rule); font-size: .9rem; }
+      a { color: var(--accent); }
+      h1 { font-size: 2rem; line-height: 1.2; letter-spacing: -.01em; }
+    </style>
+  </head>
+  <body>
+    <header><a href="/">{site.SITE_NAME}</a></header>
+    <main><slot /></main>
+    <footer>
+      {site.SITE_NAME} · Every figure on this site names its source and as-of date. Corrections:
+      <a href={`mailto:${site.CONTACT_EMAIL}`}>{site.CONTACT_EMAIL}</a>
+    </footer>
+  </body>
+</html>
