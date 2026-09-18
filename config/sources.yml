@@ -1,0 +1,22 @@
+# One entry per feed. `id` is the source_id stored on every metrics row and the first
+# path segment under raw/ in R2. Every fetch records the exact URL it pulled.
+gazetteer:
+  name: Census Gazetteer Files (places)
+  publisher: U.S. Census Bureau
+  url: https://www2.census.gov/geo/docs/maps-data/data/gazetteer/2024_Gazetteer/2024_Gaz_place_national.zip
+  filename: 2024_Gaz_place_national.zip
+  vintage: "2024"
+  cadence: annual
+  licence: Public domain (U.S. federal government work)
+  attribution: U.S. Census Bureau, Gazetteer Files, 2024
+  used_for: Place coordinates (internal point) and land area.
+popest:
+  name: Population Estimates, sub-county (cities and towns)
+  publisher: U.S. Census Bureau, Population Estimates Program
+  url: https://www2.census.gov/programs-surveys/popest/datasets/2020-2024/cities/totals/sub-est2024.csv
+  filename: sub-est2024.csv
+  vintage: "2024"
+  cadence: annual
+  licence: Public domain (U.S. federal government work)
+  attribution: U.S. Census Bureau, Vintage 2024 Population Estimates
+  used_for: Latest population, legal type, county of each place.

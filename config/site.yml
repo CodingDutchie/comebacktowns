@@ -1,0 +1,8 @@
+# Brand strings live here and only here. Templates and code read this file.
+# The singular comebacktown.com belongs to someone else: always plural.
+SITE_NAME: Comeback Towns
+SITE_DOMAIN: comebacktowns.com
+CONTACT_EMAIL: data@comebacktowns.com
+TAGLINE: Which New York towns are ready for a comeback, and the evidence for it.
+STATE_FIPS: "36"
+STATE_ABBR: NY

@@ -1,0 +1,42 @@
+# Geographic scope for v1. Regions follow New York's Regional Economic Development
+# Council (REDC) boundaries so no county sits in two regions.
+#
+# In-scope units are Census *places* (incorporated cities and villages). Census-designated
+# places (CDPs) are excluded: they have no government. Towns in the "town-of" sense are
+# county subdivisions, a different Census geography with 10-digit GEOIDs; they are not in
+# the v1 scope (see CLAUDE.md, "Decisions"). Where a village and a town share a name the
+# village is what is scored, and the page labels it as a village.
+state_fips: "36"
+legal_types: [city, village]
+population:
+  min: 1000
+  max: 50000
+# The scope gate from BUILD_PLAN.md Phase 0; the build fails outside this range.
+expected_count:
+  min: 120
+  max: 180
+regions:
+  Hudson Valley:
+    "027": Dutchess
+    "071": Orange
+    "079": Putnam
+    "087": Rockland
+    "105": Sullivan
+    "111": Ulster
+    "119": Westchester
+  Capital Region:
+    "001": Albany
+    "021": Columbia
+    "039": Greene
+    "083": Rensselaer
+    "091": Saratoga
+    "093": Schenectady
+    "113": Warren
+    "115": Washington
+  Mohawk Valley:
+    "035": Fulton
+    "043": Herkimer
+    "057": Montgomery
+    "065": Oneida
+    "077": Otsego
+    "095": Schoharie

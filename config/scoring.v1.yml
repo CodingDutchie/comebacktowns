@@ -1,0 +1,16 @@
+# Readiness scoring, version 1. Never edit in place: a change in weights or curves is a
+# new file (scoring.v2.yml) and a note in the PR explaining what moved and why.
+version: v1
+factors:
+  access:         {weight: 0.25, inputs: [drive_min_nyc, drive_min_regional_hub, miles_to_rail_station]}
+  building_stock: {weight: 0.15, inputs: [pre1940_share, has_nrhp_district]}
+  main_street:    {weight: 0.15, inputs: [osm_business_per_1k]}
+  price_headroom: {weight: 0.15, inputs: [median_home_value, metro_median_home_value]}
+  services:       {weight: 0.15, inputs: [broadband_100_share, school_enrollment_trend, hospital_within_20min]}
+  civic_capacity: {weight: 0.15, inputs: [dri_award_amount, dri_award_year]}
+grading:
+  method: curve
+  bands: {A: 90, B: 75, C: 50, D: 25, F: 0}
+  curve_within: population_band     # under 5,000 and 5,000+ are curved separately
+  population_band_split: 5000
+min_coverage: 0.6

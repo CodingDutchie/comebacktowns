@@ -1,0 +1,67 @@
+# Comeback Towns — working notes for Claude Code
+
+The build spec is `BUILD_PLAN.md`. Read it first; this file is the short version plus the
+decisions made while building.
+
+## Run things
+
+```sh
+uv sync --all-groups                       # Python 3.12 env (uv installs the interpreter)
+uv run ruff check . && uv run ruff format --check . && uv run mypy && uv run pytest
+uv run python -m pipeline.cli scope --dry-run        # build the town list, no writes
+uv run python -m pipeline.cli scope                  # ...and write the towns table in D1
+uv run python -m pipeline.cli ingest --all           # every feed -> R2 raw/{source}/{as_of}/
+npx wrangler d1 migrations apply comebacktowns --remote   # schema, from migrations/
+cd site && npm ci && npm run build                   # Astro static build -> site/dist
+npx wrangler deploy                                  # site/dist (+ API later) as one Worker
+```
+
+Environment the pipeline reads (never defaults, never literals):
+`CLOUDFLARE_ACCOUNT_ID`, `CLOUDFLARE_API_TOKEN` (D1 over HTTP, R2 over S3 with credentials
+derived from the token per Cloudflare's docs), `CENSUS_API_KEY` (Phase 1 ACS). Optional:
+`COMEBACKTOWNS_RAW_STORE=local` writes raw snapshots to `data/raw/` instead of R2;
+`R2_ACCESS_KEY_ID`/`R2_SECRET_ACCESS_KEY` override the derived R2 credentials;
+`D1_DATABASE_ID` overrides the id in `wrangler.toml`.
+
+## Guardrails (BUILD_PLAN.md §10)
+
+- Never `actions/upload-artifact`. Never commit raw data. R2 only.
+- Never print, log or echo a secret; run URLs through `pipeline.settings.redact_url` before
+  logging. Third-party HTTP loggers are set to WARNING in the CLI for the same reason.
+- Scoring weights change only by adding `config/scoring.v2.yml`, never by editing v1.
+- No new paid Cloudflare products or paid APIs without asking the owner.
+- An unreachable source stops the run. Never substitute a source, interpolate, or estimate a
+  missing number. Missing is missing and the site says so.
+- No metric enters the score unless it is in the active `config/scoring.*.yml`.
+- Brand strings come from `config/site.yml` (`SITE_NAME`, `SITE_DOMAIN`, `CONTACT_EMAIL`).
+  Always the plural `comebacktowns.com`.
+- Conventional commits, one PR per phase, tests with each module.
+
+## Layout
+
+`pipeline/` (ingest, transform, score, load, qa, `cli.py`), `config/`, `migrations/` (D1,
+applied with wrangler), `site/` (Astro 5, static), `worker/` (Phase 5 API), `tests/`,
+`seed/` (pilot regression fixture, see below), `.github/workflows/`.
+
+## Decisions and deviations from BUILD_PLAN.md
+
+- **Scope unit is the Census place** (incorporated city or village). CDPs are excluded, and
+  "town-of" county subdivisions are not in v1: they are a separate geography with 10-digit
+  GEOIDs and would add ~284 rows, far above the 120–180 gate. Village vs town-of is handled
+  by scoring the village and labelling its `legal_type`. 148 places are in scope.
+- **Regions follow NY's REDC boundaries** so no county is in two regions: Columbia and
+  Greene (Catskill, Hudson) fall in the Capital Region, not the Hudson Valley. Moving them is
+  a one-line change in `config/scope.yml` if the owner prefers the colloquial grouping.
+- **Workers static assets instead of Cloudflare Pages.** wrangler 4 no longer creates Pages
+  projects and recommends Workers; the site deploys with `wrangler deploy` from `site/dist`
+  and the Phase 5 API will share the Worker (`run_worker_first` on `/api/*`).
+- **`towns.county_fips`** was added to the §5 schema for joins against county-level ACS.
+- **`gazetteer` is an extra feed** (place coordinates); popest supplies name, county and
+  population. Both are keyless bulk files, so Phase 0 needs no Census API key.
+- **R2 credentials are derived from `CLOUDFLARE_API_TOKEN`** (access key = token id, secret
+  = SHA-256 of the token), so no extra secret is needed.
+- **`seed/pilot_v0.csv` is not in the repo.** Until the owner adds it, QA rule 4 (pilot
+  regression) cannot run and Phase 3 cannot close.
+- **Scoring inputs without a feed** (`drive_min_*`, `school_enrollment_trend`,
+  `hospital_within_20min`, `broadband_100_share` as a speed tier): the Phase 1 feed list does
+  not produce these. Sources are proposed in the Phase 0 PR and need the owner's call.
