@@ -176,5 +176,5 @@ export const factorBlurbs: Record<string, string> = {
   civic_capacity: "Whether the state has backed the downtown with a revitalization award.",
   prices: "Whether home values rose faster over the past year than in the typical New York place.",
   building: "Whether more homes are being permitted than two years ago, per resident.",
-  people: "Whether the population has held up better since 2020 than in the typical New York place.",
+  people: "Whether the population has held up better since 2020 than in the typical New York place, and whether the county gains tax filers faster than the typical New York county.",
 };

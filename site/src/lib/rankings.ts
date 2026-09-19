@@ -48,7 +48,7 @@ export const rankings: Ranking[] = [
   {
     slug: "strongest-momentum",
     title: "Strongest momentum",
-    description: "Every town with a momentum label, by momentum score: home values and population against the typical New York place, and the change in the town's own permit rate. 50 is keeping pace; 60 and above is rising, below 40 is fading.",
+    description: "Every town with a momentum label, by momentum score: home values and population against the typical New York place, county tax-filer migration against the typical New York county, and the change in the town's own permit rate. 50 is keeping pace; 60 and above is rising, below 40 is fading.",
     primaryLabel: "Momentum",
     rows: () =>
       towns

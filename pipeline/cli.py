@@ -241,7 +241,9 @@ def cmd_export(args: argparse.Namespace) -> int:
     from pipeline.export import export_site_data
     from pipeline.load.d1 import D1Client
 
-    counts = export_site_data(D1Client.from_env(), version=args.config_version)
+    counts = export_site_data(
+        D1Client.from_env(), version=args.config_version, momentum_version=args.momentum_version
+    )
     print(f"export: {counts}")
     return 0
 
@@ -274,8 +276,8 @@ def build_parser() -> argparse.ArgumentParser:
     )
     transform.set_defaults(func=cmd_transform)
 
-    def scoring_args(parser: argparse.ArgumentParser) -> None:
-        parser.add_argument("--config-version", default="v1")
+    def scoring_args(parser: argparse.ArgumentParser, default_version: str = "v1") -> None:
+        parser.add_argument("--config-version", default=default_version)
         parser.add_argument(
             "--explain", metavar="GEOID_OR_SLUG", help="print the audit trail for one town"
         )
@@ -296,11 +298,14 @@ def build_parser() -> argparse.ArgumentParser:
     momentum = sub.add_parser(
         "momentum", help="metrics -> momentum scores and rising/steady/fading labels -> D1"
     )
-    scoring_args(momentum)
+    from pipeline.settings import MOMENTUM_VERSION
+
+    scoring_args(momentum, MOMENTUM_VERSION)
     momentum.set_defaults(func=cmd_momentum)
 
     export = sub.add_parser("export", help="D1 -> site/data/*.json and the dataset download")
     export.add_argument("--config-version", default="v1")
+    export.add_argument("--momentum-version", default=MOMENTUM_VERSION)
     export.set_defaults(func=cmd_export)
     return parser
 

@@ -10,6 +10,7 @@ from pipeline.storage import RawStore
 from pipeline.transform import Context, MetricRow
 from pipeline.transform.acs import acs_metrics
 from pipeline.transform.dri import dri_metrics
+from pipeline.transform.irs import irs_metrics
 from pipeline.transform.nrhp import nrhp_metrics
 from pipeline.transform.osm import osm_metrics
 from pipeline.transform.osrm import crow_metrics, osrm_metrics
@@ -31,6 +32,7 @@ TRANSFORMS: dict[str, Callable[[Context], list[MetricRow]]] = {
     "osrm": osrm_metrics,
     "crow": crow_metrics,
     "dri": dri_metrics,
+    "irs": irs_metrics,
 }
 
 

@@ -121,6 +121,22 @@ population_change_ny_median:
   label: Typical NY place population change
   format: change
   description: Median change since 2020 across every New York place in the estimates file. The momentum benchmark.
+county_migration_inflow:
+  label: County tax-filer inflow
+  format: number
+  description: Individuals on returns filed from this town's county after filing from another county or abroad the year before (IRS SOI migration). County level; the IRS publishes no finer.
+county_migration_outflow:
+  label: County tax-filer outflow
+  format: number
+  description: Individuals on returns filed elsewhere after filing from this town's county the year before (IRS SOI migration). County level.
+county_net_migration_rate:
+  label: County net migration of tax filers
+  format: per_1k_change
+  description: Inflow minus outflow, per 1,000 of the county's filing population the year before (non-migrants plus outflow). County level; every town in a county carries the same figure.
+county_net_migration_rate_ny_median:
+  label: Typical NY county net migration
+  format: per_1k_change
+  description: Median net migration rate across New York's counties in the same IRS files. The momentum benchmark.
 permit_months_reported:
   label: Months reported
   format: number

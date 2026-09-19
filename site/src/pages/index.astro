@@ -20,7 +20,7 @@ const regions = [...new Set(towns.map((t) => t.region))].sort();
     {site.SITE_NAME} grades {meta.town_count} cities and villages in the Hudson Valley, Capital Region and Mohawk Valley on one
     question: are the ingredients for a revival present? Access, building stock, main street, price headroom, services and
     civic capacity, each from public data, each figure with its source and date. A second score, momentum, asks whether
-    anything is actually happening yet: home values, permits and population, each against a benchmark.
+    anything is actually happening yet: home values, permits, population and migration, each against a benchmark.
   </p>
   {usingSampleData && <p class="notice">This build uses the sample fixture: only {meta.town_count} towns are shown.</p>}
 
@@ -119,8 +119,8 @@ const regions = [...new Set(towns.map((t) => t.region))].sort();
 
   <h2>What this is not</h2>
   <p>
-    A readiness grade says the ingredients are there. The momentum label says whether anything is happening yet, from three
-    public series; it is not a forecast, and it does not yet see migration or vacancy. Every competitor sells the town. This
+    A readiness grade says the ingredients are there. The momentum label says whether anything is happening yet, from four
+    public series; it is not a forecast, and its migration input is a county figure. Every competitor sells the town. This
     site also says when one is stalling, which only works if every number carries its source, so
     <a href="/methodology">the methodology</a> is written for a town official to argue with.
   </p>

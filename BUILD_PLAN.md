@@ -352,8 +352,18 @@ beside the grade on every town page. Nothing about readiness changes.
 - **Site:** momentum pill and score in the town hero, a Momentum section with three factor
   cards, a "Rising now" list and a "Strongest momentum" ranking, a Momentum section on the
   methodology page, and momentum rows on compare.
-- **Out of scope for this cut:** IRS SOI migration and HUD USPS vacancy. They arrive as
-  `config/momentum.v2.yml`, never as an edit to v1 once published.
+- **Momentum v2 (`config/momentum.v2.yml`, the active version):** adds the IRS SOI
+  county-to-county migration series to `people`: `county_net_migration_rate`, inflow minus
+  outflow individuals per 1,000 of the county's year-1 filing population (non-migrants
+  plus outflow), minus the median across New York's counties. ±5 per 1,000 spans 0 to 1.
+  The IRS publishes county level only, so every town in a county carries the same figure
+  and the page says so. Weights: prices 35%, building 25%, people 40% (population and
+  migration); a label needs three of the four scored inputs. Everything else is v1.
+- **Not in v2, per §11.4:** HUD's USPS address-vacancy data. HUD releases it to
+  governmental entities and non-profit organisations registered as users only ("Under the
+  current agreement with the USPS, HUD can make the data accessible only to governmental
+  entities and non-profit organizations registered as users"), which this project cannot
+  complete. If the owner registers, vacancy becomes `momentum.v3.yml`.
 
 **Done when:** `momentum --dry-run` labels most towns with none of the readiness outputs
 changing, the methodology page explains every momentum curve in a sentence, and a monthly

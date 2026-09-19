@@ -92,6 +92,29 @@ def test_every_scoring_input_has_a_curve_or_is_context():
     for factor in momentum_config("v1")["factors"].values():
         for name in factor["inputs"]:
             assert name in MOMENTUM_CURVES_V1 or name in CONTEXT_ONLY, name
+    for factor in momentum_config("v2")["factors"].values():
+        for name in factor["inputs"]:
+            assert name in MOMENTUM_CURVES["v2"] or name in CONTEXT_ONLY, name
+
+
+def test_momentum_v2_adds_county_migration_to_people():
+    t = town("3600021", "Migrant", 3000)
+    rows = [row(t.geoid, m, v) for m, v in MOMENTUM.items()]
+    rows += [
+        row(t.geoid, "county_net_migration_rate", 3.0),
+        row(t.geoid, "county_net_migration_rate_ny_median", -2.0),  # +5 per 1,000 -> 1
+    ]
+    (s,) = score_all([t], rows, config=momentum_config("v2"), curves=MOMENTUM_CURVES["v2"])
+    assert s.config_version == "v2" and s.coverage == 1.0
+    assert s.factor_scores["people"] == pytest.approx((2 / 3 + 1) / 2, abs=1e-4)
+    assert s.readiness == pytest.approx(
+        100 * (0.35 * 1 + 0.25 * 0.5 + 0.4 * (2 / 3 + 1) / 2), abs=0.05
+    )
+    assert s.grade == "rising"
+    # three of four scored inputs are needed for a label
+    thin = [r for r in rows if r["metric"] not in ("zhvi_change_1y", "permit_rate_change")]
+    (s2,) = score_all([t], thin, config=momentum_config("v2"), curves=MOMENTUM_CURVES["v2"])
+    assert s2.coverage == pytest.approx(0.5) and s2.grade is None
 
 
 def test_relative_curve_keeps_pace_at_the_midpoint():

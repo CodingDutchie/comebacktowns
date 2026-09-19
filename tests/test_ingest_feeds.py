@@ -9,7 +9,7 @@ import zipfile
 import httpx
 import pytest
 
-from pipeline.ingest import acs, dri, hospitals, nrhp, permits, rail, tiger, zillow
+from pipeline.ingest import acs, dri, hospitals, irs, nrhp, permits, rail, tiger, zillow
 from pipeline.ingest.base import Throttle, fetch_arcgis_layer
 from pipeline.storage import LocalStore, read_meta
 
@@ -269,3 +269,32 @@ def make_zip(files: dict[str, str]) -> bytes:
         for name, text in files.items():
             zf.writestr(name, text)
     return buf.getvalue()
+
+
+def test_irs_fetches_both_flows_for_every_year_pair(local_store: LocalStore, monkeypatch):
+    monkeypatch.setattr(
+        "pipeline.ingest.irs.source",
+        lambda _id: {
+            "url": "https://www.irs.gov/pub/irs-soi/county{flow}{years}.csv",
+            "years": ["2122", "2223"],
+            "flows": ["inflow", "outflow"],
+        },
+    )
+    urls = []
+
+    def handler(request):
+        urls.append(str(request.url))
+        return httpx.Response(200, content=b"y2_statefips,y2_countyfips\n")
+
+    keys = irs.fetch("2026-09-19", store=local_store, client=client_for(handler))
+    assert keys == [
+        "raw/irs/2026-09-19/countyinflow2122.csv",
+        "raw/irs/2026-09-19/countyoutflow2122.csv",
+        "raw/irs/2026-09-19/countyinflow2223.csv",
+        "raw/irs/2026-09-19/countyoutflow2223.csv",
+    ]
+    assert urls[0] == "https://www.irs.gov/pub/irs-soi/countyinflow2122.csv"
+    assert read_meta(local_store, keys[-1])["url"].endswith("countyoutflow2223.csv")
+    # a rerun is a no-op
+    assert irs.fetch("2026-09-19", store=local_store, client=client_for(handler)) == keys
+    assert len(urls) == 4
