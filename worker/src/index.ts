@@ -2,15 +2,15 @@
  * comebacktowns.com Worker: serves the static site from assets and a small JSON API.
  *
  *   GET /api/search?q=            search-as-you-type over name, county and slug
- *   GET /api/filter?region=&band=&grade=&min_readiness=&max_home_value=&max_drive_nyc=…
+ *   GET /api/filter?region=&band=&grade=&momentum=&min_readiness=&max_home_value=&max_drive_nyc=…
  *   GET /api/compare?towns=a,b,c  up to three towns, every headline fact
  *   GET /api/health
  *
- * The town index (towns + latest scores + latest facts) is built from D1 once and cached in
+ * The town index (towns + latest scores + latest momentum + latest facts) is built from D1 once and cached in
  * KV for INDEX_TTL seconds, so a search never waits on the database. Responses carry
  * Cache-Control so the edge cache serves repeated queries without running the Worker.
  */
-import { buildIndex, compare, filter, parseFilter, publicTown, search, type MetricRow, type ScoreRow, type TownIndex, type TownRow, FACT_METRICS } from "./logic";
+import { buildIndex, compare, filter, parseFilter, publicTown, search, type MetricRow, type MomentumRow, type ScoreRow, type TownIndex, type TownRow, FACT_METRICS } from "./logic";
 
 export interface Env {
   DB: D1Database;
@@ -20,7 +20,7 @@ export interface Env {
   INDEX_TTL?: string;
 }
 
-const INDEX_KEY = "index:v1";
+const INDEX_KEY = "index:v2"; // bumped when the index shape changes; publish.yml purges this key
 const DEFAULT_TTL = 600;
 
 let memo: { index: TownIndex; expires: number } | null = null; // per-isolate memo, KV behind it
@@ -42,12 +42,13 @@ async function loadIndex(env: Env, ctx: ExecutionContext): Promise<TownIndex> {
 
 async function buildFromD1(env: Env): Promise<TownIndex> {
   const placeholders = FACT_METRICS.map(() => "?").join(",");
-  const [towns, scores, metrics] = await Promise.all([
+  const [towns, scores, metrics, momentum] = await Promise.all([
     env.DB.prepare("SELECT geoid, name, legal_type, county, region, lat, lon, pop_latest, slug FROM towns").all<TownRow>(),
     env.DB.prepare("SELECT geoid, readiness, grade, coverage, factor_scores, computed_at FROM scores WHERE config_version = 'v1'").all<ScoreRow>(),
     env.DB.prepare(`SELECT geoid, metric, period, value, suppressed FROM metrics WHERE metric IN (${placeholders})`).bind(...FACT_METRICS).all<MetricRow>(),
+    env.DB.prepare("SELECT geoid, momentum, label, coverage, computed_at FROM momentum WHERE config_version = 'v1'").all<MomentumRow>(),
   ]);
-  return buildIndex(towns.results, scores.results, metrics.results);
+  return buildIndex(towns.results, scores.results, metrics.results, momentum.results);
 }
 
 function corsHeaders(request: Request, env: Env): Record<string, string> {
@@ -92,7 +93,7 @@ async function api(request: Request, env: Env, ctx: ExecutionContext, url: URL):
   const path = url.pathname.replace(/\/+$/, "");
   if (path === "/api/health") {
     const index = await loadIndex(env, ctx);
-    return json({ ok: true, towns: index.towns.length, scores_computed_at: index.computed_at, index_built_at: index.built_at }, request, env, 200, 30, t0);
+    return json({ ok: true, towns: index.towns.length, scores_computed_at: index.computed_at, momentum_computed_at: index.momentum_computed_at, index_built_at: index.built_at }, request, env, 200, 30, t0);
   }
   if (path === "/api/search") {
     const q = url.searchParams.get("q") ?? "";

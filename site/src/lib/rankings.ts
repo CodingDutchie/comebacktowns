@@ -1,8 +1,8 @@
-import { metric, scores, towns, usable, type Town } from "./data";
+import { metric, momentum, momentumLabels, scores, towns, usable, type Town } from "./data";
 
 export interface RankingRow {
   town: Town;
-  readiness: number;
+  readiness: number | null;
   grade: string | null;
   primary: number;
   primaryLabel: string;
@@ -44,6 +44,25 @@ export const rankings: Ranking[] = [
         .map((town) => ({ town, s: scores[town.geoid] }))
         .sort((a, b) => b.s.readiness - a.s.readiness)
         .map(({ town, s }) => ({ town, readiness: s.readiness, grade: s.grade, primary: s.readiness, primaryLabel: "Readiness", extra: `${Math.round(s.coverage * 100)}% coverage` })),
+  },
+  {
+    slug: "strongest-momentum",
+    title: "Strongest momentum",
+    description: "Every town with a momentum label, by momentum score: home values and population against the typical New York place, and the change in the town's own permit rate. 50 is keeping pace; 60 and above is rising, below 40 is fading.",
+    primaryLabel: "Momentum",
+    rows: () =>
+      towns
+        .filter((t) => momentum[t.geoid]?.label)
+        .map((town) => ({ town, s: scores[town.geoid], m: momentum[town.geoid] }))
+        .sort((a, b) => b.m.momentum - a.m.momentum)
+        .map(({ town, s, m }) => ({
+          town,
+          readiness: s?.readiness ?? null,
+          grade: s?.grade ?? null,
+          primary: m.momentum,
+          primaryLabel: "Momentum",
+          extra: `${momentumLabels[m.label!] ?? m.label} · ${Math.round(m.coverage * 100)}% coverage`,
+        })),
   },
   {
     slug: "price-headroom",

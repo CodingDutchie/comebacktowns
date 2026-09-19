@@ -19,7 +19,7 @@ popest:
   cadence: annual
   licence: Public domain (U.S. federal government work)
   attribution: U.S. Census Bureau, Vintage 2024 Population Estimates
-  used_for: Latest population, legal type, county of each place.
+  used_for: Latest population, legal type, county of each place; population change since 2020 and its statewide benchmark for momentum.
 acs:
   name: American Community Survey 5-year estimates
   publisher: U.S. Census Bureau
@@ -57,7 +57,7 @@ permits:
   cadence: annual
   licence: Public domain (U.S. federal government work)
   attribution: U.S. Census Bureau, Building Permits Survey
-  used_for: Housing units permitted per year (3-year rolling mean per 1,000 residents).
+  used_for: Housing units permitted per year (3-year rolling mean per 1,000 residents) and the change in that rate over two years for momentum.
 nrhp:
   name: National Register of Historic Places, spatial data
   publisher: National Park Service
@@ -96,7 +96,7 @@ zillow:
   cadence: monthly
   licence: Free to use with attribution (Zillow Research data terms)
   attribution: Zillow Research, ZHVI and ZORI
-  used_for: Current home value and rent where Zillow covers the place; gaps stay gaps.
+  used_for: Current home value and rent where Zillow covers the place, their one-year change and the statewide benchmark for momentum; gaps stay gaps.
 hospitals:
   name: NYS Health Facility General Information
   publisher: New York State Department of Health (Health Data NY)

@@ -1,14 +1,18 @@
 ---
 import Base from "../layouts/Base.astro";
-import { factorBlurbs, factorLabels, meta, methodology, sources } from "../lib/data";
+import { factorBlurbs, factorLabels, meta, methodology, momentumLabels, sources } from "../lib/data";
 import { label, describe } from "../lib/format";
 const site = meta.site;
 const bands = Object.entries(methodology.grading.bands).sort((a, b) => b[1] - a[1]);
+const mo = methodology.momentum;
+const moBands = Object.entries(mo.grading.bands).sort((a, b) => b[1] - a[1]);
+const risingAt = mo.grading.bands.rising;
+const steadyAt = mo.grading.bands.steady;
 const jsonLd = {
   "@context": "https://schema.org",
   "@type": "Dataset",
   name: `${site.SITE_NAME} readiness dataset`,
-  description: `Readiness scores, grades and every input metric with source and as-of date for ${meta.town_count} New York cities and villages.`,
+  description: `Readiness scores, grades, momentum scores and labels, and every input metric with source and as-of date for ${meta.town_count} New York cities and villages.`,
   url: new URL("/methodology", Astro.site).toString(),
   license: "https://creativecommons.org/licenses/by/4.0/",
   creator: { "@type": "Organization", name: site.SITE_NAME, url: `https://${site.SITE_DOMAIN}` },
@@ -18,12 +22,12 @@ const jsonLd = {
   isBasedOn: sources.map((s) => s.url).filter(Boolean),
 };
 ---
-<Base title="Methodology" description="How the readiness score works: weights, every curve, suppression rules and the dataset download." jsonLd={jsonLd}>
+<Base title="Methodology" description="How the readiness and momentum scores work: weights, every curve, labels, suppression rules and the dataset download." jsonLd={jsonLd}>
   <h1>Methodology</h1>
-  <p class="lede">Readiness asks one question: are the ingredients for a revival present? It is slow-moving and graded A to F. This page is written so a town official can argue with it, line by line.</p>
+  <p class="lede">Readiness asks one question: are the ingredients for a revival present? It is slow-moving and graded A to F. Momentum asks a second: is anything actually happening? It is a score with three labels. This page is written so a town official can argue with either, line by line.</p>
 
   <h2 id="download">The dataset</h2>
-  <p><a href="/downloads/comebacktowns-dataset.csv">Download the full dataset (CSV)</a>: one row per town with every metric, its period and suppression flag, and the score. Licensed <a href="https://creativecommons.org/licenses/by/4.0/">CC BY 4.0</a>; the underlying sources keep their own terms, listed on <a href="/sources">Sources</a>. Generated {meta.generated_at.slice(0, 10)} with methodology version {methodology.version}.</p>
+  <p><a href="/downloads/comebacktowns-dataset.csv">Download the full dataset (CSV)</a>: one row per town with every metric, its period and suppression flag, the readiness score and grade, and the momentum score and label. Licensed <a href="https://creativecommons.org/licenses/by/4.0/">CC BY 4.0</a>; the underlying sources keep their own terms, listed on <a href="/sources">Sources</a>. Generated {meta.generated_at.slice(0, 10)} with methodology version {methodology.version}.</p>
 
   <h2 id="factors">Six factors and their weights</h2>
   <div class="table-wrap">
@@ -64,6 +68,41 @@ const jsonLd = {
   <p>Grades are curved within population bands, because Census sample quality differs sharply between small villages and cities. Towns under {methodology.grading.population_band_split.toLocaleString("en-US")} residents are ranked against each other; towns at or above it likewise. Within a band the percentile cut-offs are:</p>
   <ul>{bands.map(([g, p]) => <li><strong>{g}</strong>: {p === 0 ? "everything below the D cut-off" : `${p}th percentile and above`}</li>)}</ul>
 
+  <h2 id="momentum">Momentum</h2>
+  <p>Momentum is a separate score, version {mo.version}, built by the same engine from three changes over time. It is not curved against other towns: every input is judged against a benchmark, so a town keeping pace scores 0.5 on each curve and 50 overall. Home values and population are compared with the median New York place in the same source file, so a statewide boom or drain does not read as momentum everywhere; permits are compared with the town's own rate two years earlier. Rent is shown on town pages but not scored, because Zillow publishes a rent index for few villages.</p>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Factor</th><th class="num">Weight</th><th>What it asks</th><th>Inputs</th></tr></thead>
+      <tbody>
+        {mo.factors.map((f) => (
+          <tr>
+            <td><strong>{factorLabels[f.name]}</strong></td>
+            <td class="num">{Math.round(f.weight * 100)}%</td>
+            <td>{factorBlurbs[f.name]}</td>
+            <td class="small">{f.inputs.map((i) => label(i.metric)).join(", ")}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  </div>
+  {mo.factors.map((f) => (
+    <section>
+      <h3>{factorLabels[f.name]}</h3>
+      <ul>
+        {f.inputs.map((i) => (
+          <li>
+            <strong>{label(i.metric)}</strong> <span class="muted small">({describe(i.metric)})</span><br />
+            {i.context_only ? <span class="muted">The benchmark another input is measured against; it has no curve of its own.</span> : i.curve}
+          </li>
+        ))}
+      </ul>
+    </section>
+  ))}
+  <h3 id="momentum-labels">Labels</h3>
+  <p>The labels are absolute cut-offs on the 0–100 momentum score, not percentiles, because momentum measures direction rather than rank:</p>
+  <ul>{moBands.map(([name, cutoff]) => <li><strong>{momentumLabels[name] ?? name}</strong>: {cutoff === 0 ? `below ${steadyAt}` : name === "rising" ? `${risingAt} and above` : `${cutoff} up to ${risingAt}`}</li>)}</ul>
+  <p id="momentum-coverage">Below {Math.round(mo.min_coverage * 100)}% coverage, which means fewer than two of the three scored inputs, the town's page shows its data and <strong>no label</strong>. Permit changes are suppressed when any of the five years involved was reported for fewer than twelve months, and Zillow does not cover every village; both count as missing, never as zero.</p>
+
   <h2 id="coverage">Coverage and missing inputs</h2>
   <p id="missing">A missing input never scores zero. It is left out of its factor, and the town's <em>coverage</em> (usable inputs over applicable inputs) drops. Below {Math.round(methodology.min_coverage * 100)}% coverage the page is published with its data and <strong>no grade</strong>, because a grade on that little evidence would be a guess.</p>
 
@@ -85,5 +124,7 @@ const jsonLd = {
     <li>Drive times are off-peak routed estimates over OpenStreetMap; straight-line distances are kept as separate figures and never substituted.</li>
     <li>State downtown awards are read from ny.gov program pages; an amount is taken from the page only when it matches a size the programs actually pay, otherwise the program's standard award is recorded.</li>
     <li>Zillow does not cover every village. Where it does not, the figure is missing, not estimated.</li>
+    <li>OpenStreetMap completeness varies by town, and the main-street factor inherits it: a town whose shops are not yet mapped scores low there until they are. Corrections belong in OpenStreetMap itself, and the next monthly refresh picks them up.</li>
+    <li>Momentum sees three series so far: home values, permits and population. Migration and vacancy feeds are planned and will arrive as a new momentum version, not a silent change to this one.</li>
   </ul>
 </Base>

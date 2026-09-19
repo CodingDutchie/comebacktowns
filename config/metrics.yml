@@ -18,6 +18,22 @@ zori:
   label: Zillow observed rent
   format: money
   description: Zillow's typical asking rent for the place, latest month with a value.
+zhvi_change_1y:
+  label: Home value change, one year
+  format: change
+  description: Zillow home value index, latest month against the same month a year earlier.
+zhvi_change_1y_ny_median:
+  label: Typical NY place home value change
+  format: change
+  description: Median one-year change in the Zillow home value index across every New York place in the file. The momentum benchmark.
+zori_change_1y:
+  label: Rent change, one year
+  format: change
+  description: Zillow observed rent index, latest month against the same month a year earlier. Shown, not scored, because Zillow publishes it for few villages.
+zori_change_1y_ny_median:
+  label: Typical NY place rent change
+  format: change
+  description: Median one-year change in the Zillow observed rent index across every New York place in the file.
 drive_min_nyc:
   label: Drive to New York City
   format: minutes
@@ -99,8 +115,12 @@ population:
   description: Census Bureau population estimate.
 population_change:
   label: Population change since 2020
-  format: percent
+  format: change
   description: Census population estimates, 2020 base to the latest year.
+population_change_ny_median:
+  label: Typical NY place population change
+  format: change
+  description: Median change since 2020 across every New York place in the estimates file. The momentum benchmark.
 permit_months_reported:
   label: Months reported
   format: number
@@ -109,6 +129,10 @@ permits_per_1k:
   label: Units permitted per 1,000 residents
   format: per_1k
   description: Three-year mean of units permitted, per 1,000 residents.
+permit_rate_change:
+  label: Change in permit rate
+  format: per_1k_change
+  description: The latest three-year permit rate, in units per 1,000 residents a year, minus the three-year rate ending two years earlier.
 nrhp_district_count:
   label: Historic districts
   format: number

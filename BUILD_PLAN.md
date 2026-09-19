@@ -15,7 +15,8 @@ working doc in the owner's Claude project. This file is the authoritative build 
 **comebacktowns.com** — a public data site that scores New York towns on two things:
 
 - **Readiness** — are the ingredients for a revival present? (slow-moving, A–F grade). v1.
-- **Momentum** — is anything actually happening? (rising / steady / fading). v2.
+- **Momentum** — is anything actually happening? (rising / steady / fading). First cut in
+  Phase 7 from the series v1 already pulls; migration and vacancy feeds later.
 
 One dataset, three audiences: people considering a move, small investors, town officials.
 The product's claim is *"this town is turning around, and here is the evidence."* Every
@@ -317,6 +318,47 @@ CORS restricted to the site origin.
 **Done when:** a manual dispatch runs end to end, the deployed site shows new as-of dates,
 and zero artifacts were uploaded.
 
+### Phase 7 — Momentum, first cut
+
+Momentum answers the second question in §0: is anything actually happening? It is a
+separate 0–100 score with three absolute labels, computed by the same engine as readiness
+from `config/momentum.v1.yml`, stored in its own `momentum` table (migration 0002) and shown
+beside the grade on every town page. Nothing about readiness changes.
+
+- **Inputs are changes over time, each judged against a benchmark**, so a statewide boom
+  or drain does not read as momentum everywhere. A town keeping pace scores 0.5 on each
+  curve and 50 overall, which is the "steady" centre.
+  - `prices` (40%): `zhvi_change_1y`, the Zillow home value index at its latest month
+    against the same month a year earlier, minus `zhvi_change_1y_ny_median`, the median of
+    that change across every New York place in the same file. ±5 percentage points spans 0
+    to 1.
+  - `building` (30%): `permit_rate_change`, the latest three-year permit rate (units per
+    1,000 residents a year, QA rule 2's window) minus the three-year rate ending two years
+    earlier. ±2 units per 1,000 spans 0 to 1. Suppressed when any of the five years was
+    reported for fewer than twelve months.
+  - `people` (30%): `population_change` (2020 to the latest estimate) minus
+    `population_change_ny_median`, the median across every New York place in the estimates
+    file. ±3 percentage points spans 0 to 1.
+  - Rent (`zori_change_1y`) is produced and shown, not scored: Zillow publishes it for
+    23 of 148 towns.
+- **Labels:** rising at 60 and above, steady from 40, fading below 40. Absolute cut-offs,
+  not a curve, because momentum measures direction rather than rank. Below 60% coverage
+  (fewer than two of the three scored inputs) there is no label, and the page says so.
+- **Pipeline:** `transform` emits the six new metrics (bounds in `config/qa.yml`, labels in
+  `config/metrics.yml`); `cli.py momentum` mirrors `score` (`--dry-run`, `--explain`,
+  `--metrics-csv`, `--out`); `refresh.yml` runs the momentum dry run after the scoring dry
+  run and loads momentum after scores; `export` writes `momentum.json` and adds momentum
+  columns to the dataset CSV; the Worker index carries the label (`/api/filter?momentum=`).
+- **Site:** momentum pill and score in the town hero, a Momentum section with three factor
+  cards, a "Rising now" list and a "Strongest momentum" ranking, a Momentum section on the
+  methodology page, and momentum rows on compare.
+- **Out of scope for this cut:** IRS SOI migration and HUD USPS vacancy. They arrive as
+  `config/momentum.v2.yml`, never as an edit to v1 once published.
+
+**Done when:** `momentum --dry-run` labels most towns with none of the readiness outputs
+changing, the methodology page explains every momentum curve in a sentence, and a monthly
+refresh recomputes momentum from the Zillow pull without touching readiness.
+
 ---
 
 ## 9. Definition of done for v1
@@ -357,6 +399,7 @@ argue with, a downloadable dataset, and a monthly refresh that runs without bein
 
 ## 12. Out of scope for v1
 
-Momentum scoring and its feeds (IRS SOI migration, HUD USPS vacancy, price and permit time
-series), the mover/investor/planner lenses, email alerts, statewide coverage, and the
-long-form case studies. All are specified in the project doc as v2/v3.
+Momentum's remaining feeds (IRS SOI migration, HUD USPS vacancy; the first cut in Phase 7
+uses the price, permit and population series v1 already pulls), the mover/investor/planner
+lenses, email alerts, statewide coverage, and the long-form case studies. All are specified
+in the project doc as v2/v3.

@@ -96,6 +96,11 @@ def cmd_transform(args: argparse.Namespace) -> int:
     print("coverage of scoring inputs (usable share of towns):")
     for name, share in report.items():
         print(f"  {name:32s} {share:6.1%}")
+    from pipeline.settings import momentum_config
+
+    print("coverage of momentum inputs (shown, not gated):")
+    for name, share in coverage_report(rows, len(towns), scoring=momentum_config()).items():
+        print(f"  {name:32s} {share:6.1%}")
     if args.out:
         with Path(args.out).open("w", newline="") as fh:
             writer = csv.writer(fh)
@@ -137,23 +142,41 @@ def read_metrics_csv(path: Path) -> list[dict[str, Any]]:
     return rows
 
 
-def cmd_score(args: argparse.Namespace) -> int:
+def run_scoring(args: argparse.Namespace, *, kind: str) -> int:
+    """``score`` (readiness) and ``momentum`` share one path: load, score, explain or
+    summarise, run the QA that applies, then write unless this is a dry run."""
     from pipeline.load.d1 import D1Client
-    from pipeline.load.scores import load_scores, read_metrics, read_towns
+    from pipeline.load.scores import (
+        MOMENTUM_COLUMNS,
+        load_momentum,
+        load_scores,
+        read_metrics,
+        read_towns,
+    )
     from pipeline.qa.pilot import PilotFixtureMissingError, check_pilot, load_pilot
     from pipeline.scope import Town
-    from pipeline.score.curves import CURVES
-    from pipeline.score.engine import SCORE_COLUMNS, explain, score_all
-    from pipeline.settings import scoring_config
+    from pipeline.score.curves import CURVES, MOMENTUM_CURVES
+    from pipeline.score.engine import SCORE_COLUMNS, explain, grade_word, score_all
+    from pipeline.settings import momentum_config, scoring_config
 
+    if kind == "momentum":
+        config = momentum_config(args.config_version)
+        curves = MOMENTUM_CURVES[args.config_version]
+        columns = MOMENTUM_COLUMNS
+    else:
+        config = scoring_config(args.config_version)
+        curves = CURVES[args.config_version]
+        columns = SCORE_COLUMNS
     d1 = D1Client.from_env()
     towns = [Town(**row) for row in read_towns(d1)]
     if args.metrics_csv:
         metric_rows = read_metrics_csv(Path(args.metrics_csv))
-        log.info("score: %d metric rows from %s", len(metric_rows), args.metrics_csv)
+        log.info("%s: %d metric rows from %s", kind, len(metric_rows), args.metrics_csv)
     else:
         metric_rows = read_metrics(d1)
-    scores = score_all(towns, metric_rows, version=args.config_version)
+    scores = score_all(
+        towns, metric_rows, version=args.config_version, config=config, curves=curves
+    )
     by_geoid = {t.geoid: t for t in towns}
     if args.explain:
         town = next((t for t in towns if args.explain in (t.geoid, t.slug)), None)
@@ -161,40 +184,57 @@ def cmd_score(args: argparse.Namespace) -> int:
             log.error("no town with geoid or slug %s", args.explain)
             return 2
         score = next(s for s in scores if s.geoid == town.geoid)
-        print(
-            explain(score, town, scoring_config(args.config_version), CURVES[args.config_version])
-        )
+        print(explain(score, town, config, curves))
         return 0
-    graded = sum(1 for s in scores if s.grade)
-    print(f"scored {len(scores)} towns, {graded} graded, {len(scores) - graded} without a grade")
-    for band in sorted({s.band for s in scores}):
-        members = [s for s in scores if s.band == band]
-        letters = {g: sum(1 for s in members if s.grade == g) for g in "ABCDF"}
-        print(f"  band {band:12s} n={len(members):3d} grades {letters}")
+    word = grade_word(config)
+    labelled = sum(1 for s in scores if s.grade)
+    print(
+        f"{kind}: scored {len(scores)} towns, {labelled} with a {word}, "
+        f"{len(scores) - labelled} without"
+    )
+    if word == "label":
+        counts = {
+            name: sum(1 for s in scores if s.grade == name) for name in config["grading"]["bands"]
+        }
+        print(f"  labels {counts}")
+    else:
+        for band in sorted({s.band for s in scores}):
+            members = [s for s in scores if s.band == band]
+            letters = {g: sum(1 for s in members if s.grade == g) for g in "ABCDF"}
+            print(f"  band {band:12s} n={len(members):3d} grades {letters}")
     if args.out:
         with Path(args.out).open("w", newline="") as fh:
             writer = csv.writer(fh)
-            writer.writerow([*SCORE_COLUMNS, "slug", "band"])
+            writer.writerow([*columns, "slug", "band"])
             for s in scores:
                 writer.writerow([*s.row(), by_geoid[s.geoid].slug, s.band])
-        log.info("score: wrote %s", args.out)
-    try:
-        for line in check_pilot(scores, {t.geoid: t.slug for t in towns}, load_pilot()):
-            print("  pilot " + line)
-    except PilotFixtureMissingError as exc:
-        log.error("%s", exc)
-        if not args.no_pilot:
-            log.error("QA rule 4 cannot run; pass --no-pilot to write scores regardless")
+        log.info("%s: wrote %s", kind, args.out)
+    if kind == "readiness":
+        try:
+            for line in check_pilot(scores, {t.geoid: t.slug for t in towns}, load_pilot()):
+                print("  pilot " + line)
+        except PilotFixtureMissingError as exc:
+            log.error("%s", exc)
+            if not args.no_pilot:
+                log.error("QA rule 4 cannot run; pass --no-pilot to write scores regardless")
+                return 1
+        except QAError as exc:
+            log.error("%s", exc)
             return 1
-    except QAError as exc:
-        log.error("%s", exc)
-        return 1
     if args.dry_run:
         print("dry run, nothing written to D1")
         return 0
-    written = load_scores(scores, d1)
-    print(f"scores: {written} rows written for config {args.config_version}")
+    written = load_momentum(scores, d1) if kind == "momentum" else load_scores(scores, d1)
+    print(f"{kind}: {written} rows written for config {args.config_version}")
     return 0
+
+
+def cmd_score(args: argparse.Namespace) -> int:
+    return run_scoring(args, kind="readiness")
+
+
+def cmd_momentum(args: argparse.Namespace) -> int:
+    return run_scoring(args, kind="momentum")
 
 
 def cmd_export(args: argparse.Namespace) -> int:
@@ -234,20 +274,30 @@ def build_parser() -> argparse.ArgumentParser:
     )
     transform.set_defaults(func=cmd_transform)
 
+    def scoring_args(parser: argparse.ArgumentParser) -> None:
+        parser.add_argument("--config-version", default="v1")
+        parser.add_argument(
+            "--explain", metavar="GEOID_OR_SLUG", help="print the audit trail for one town"
+        )
+        parser.add_argument("--dry-run", action="store_true", help="score and validate, skip D1")
+        parser.add_argument("--out", help="also write the results as CSV to this path")
+        parser.add_argument(
+            "--metrics-csv",
+            help="score from a transform --out file instead of the D1 metrics table",
+        )
+
     score = sub.add_parser("score", help="metrics -> readiness scores and grades -> D1")
-    score.add_argument("--config-version", default="v1")
-    score.add_argument(
-        "--explain", metavar="GEOID_OR_SLUG", help="print the audit trail for one town"
-    )
-    score.add_argument("--dry-run", action="store_true", help="score and validate, skip D1")
-    score.add_argument("--out", help="also write the scores as CSV to this path")
+    scoring_args(score)
     score.add_argument(
         "--no-pilot", action="store_true", help="proceed when seed/pilot_v0.csv is missing"
     )
-    score.add_argument(
-        "--metrics-csv", help="score from a transform --out file instead of the D1 metrics table"
-    )
     score.set_defaults(func=cmd_score)
+
+    momentum = sub.add_parser(
+        "momentum", help="metrics -> momentum scores and rising/steady/fading labels -> D1"
+    )
+    scoring_args(momentum)
+    momentum.set_defaults(func=cmd_momentum)
 
     export = sub.add_parser("export", help="D1 -> site/data/*.json and the dataset download")
     export.add_argument("--config-version", default="v1")

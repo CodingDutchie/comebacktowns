@@ -17,6 +17,8 @@ uv run python -m pipeline.cli transform              # ...and upsert the metrics
 uv run python -m pipeline.cli score --explain catskill-ny   # full audit trail for one town
 uv run python -m pipeline.cli score --dry-run        # score + grade every town, run QA rule 4
 uv run python -m pipeline.cli score                  # ...and append a scores run to D1
+uv run python -m pipeline.cli momentum --dry-run     # momentum score + rising/steady/fading label
+uv run python -m pipeline.cli momentum               # ...and append a momentum run to D1
 npx wrangler d1 migrations apply comebacktowns --remote   # schema, from migrations/
 uv run python -m pipeline.cli export                 # D1 -> site/data/*.json + dataset CSV
 cd site && npm ci && npm run check && npm run build  # Astro static build -> site/dist
@@ -40,7 +42,8 @@ derived from the token per Cloudflare's docs), `CENSUS_API_KEY` (Phase 1 ACS). O
 - No new paid Cloudflare products or paid APIs without asking the owner.
 - An unreachable source stops the run. Never substitute a source, interpolate, or estimate a
   missing number. Missing is missing and the site says so.
-- No metric enters the score unless it is in the active `config/scoring.*.yml`.
+- No metric enters the score unless it is in the active `config/scoring.*.yml`; the same
+  for momentum and `config/momentum.*.yml`.
 - Brand strings come from `config/site.yml` (`SITE_NAME`, `SITE_DOMAIN`, `CONTACT_EMAIL`).
   Always the plural `comebacktowns.com`.
 - Conventional commits, one PR per phase, tests with each module.
@@ -150,6 +153,18 @@ applied with wrangler), `site/` (Astro 5, static), `worker/` (Phase 5 API), `tes
   naming the source or step, and nothing is published. Scheduled runs never skip QA rule 4:
   drift beyond ±3 stops them at the scoring dry run with an issue; `skip_pilot` on a manual
   dispatch only covers a missing fixture.
+- **Momentum (Phase 7).** The second score from BUILD_PLAN.md §0, built by the readiness
+  engine from `config/momentum.v1.yml` (curves in `MOMENTUM_CURVES_V1`), written to its own
+  `momentum` table (migration 0002) by `cli.py momentum`, and exported as `momentum.json`.
+  Three inputs, each a change judged against a benchmark: Zillow home value change over one
+  year and population change since 2020, both minus the median across every New York place
+  in the same source file (`*_ny_median` rows, context-only like `metro_median_home_value`);
+  and the change in the town's own three-year permit rate over two years. Keeping pace
+  scores 50; labels are absolute (rising ≥ 60, fading < 40), not curved, because momentum
+  is direction, not rank; under 60% coverage (fewer than two of three inputs) there is no
+  label. Rent change is produced and shown but not scored (Zillow covers 23 of 148 towns).
+  Momentum inputs are printed by `transform` but not gated by the 85% floor. IRS migration
+  and HUD vacancy would be `momentum.v2.yml`. The Worker index key moved to `index:v2`.
 - **Snapshot resolution.** Each transform reads the latest snapshot of its own source on or
   before the run date and stamps rows with that date, so a monthly run re-pulls only the
   monthly feeds and every other figure keeps citing its most recent pull.

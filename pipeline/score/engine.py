@@ -1,8 +1,11 @@
-"""Readiness scoring: inputs -> curves -> factor scores -> weighted total -> curved grade.
+"""Scoring: inputs -> curves -> factor scores -> weighted total -> grade or label.
 
 Rules (BUILD_PLAN.md §6): a missing or suppressed input is excluded and lowers coverage,
-never scores zero; below ``min_coverage`` there is no grade; grades are curved within
-population bands because ACS quality differs sharply between small villages and cities.
+never scores zero; below ``min_coverage`` there is no grade; readiness grades are curved
+within population bands because ACS quality differs sharply between small villages and
+cities. The same engine scores momentum (Phase 7) from ``config/momentum.v1.yml``: there the
+total is the momentum score and the "grade" is an absolute label (rising, steady, fading),
+because momentum measures direction, not rank.
 """
 
 from __future__ import annotations
@@ -35,6 +38,9 @@ class Input:
 
 @dataclass
 class Score:
+    """One town's result. ``readiness`` is the 0-100 total of whichever config produced it
+    (momentum when scored from config/momentum.*.yml) and ``grade`` its grade or label."""
+
     geoid: str
     config_version: str
     computed_at: str
@@ -182,14 +188,20 @@ def population_band(town: Town, split: int) -> str:
     return f"under_{split}" if pop < split else f"{split}_plus"
 
 
+def grade_word(config: dict[str, Any]) -> str:
+    return "label" if config["grading"]["method"] == "threshold" else "grade"
+
+
 def assign_grades(scores: list[Score], towns: dict[str, Town], config: dict[str, Any]) -> None:
-    """Percentile-curve grades within each population band; no grade below min_coverage."""
+    """``curve``: percentile grades within each population band. ``threshold``: absolute
+    cut-offs on the total (momentum labels). Either way, nothing below min_coverage."""
     grading = config["grading"]
-    if grading["method"] != "curve":
+    if grading["method"] not in {"curve", "threshold"}:
         raise ValueError(f"unsupported grading method {grading['method']}")
     bands = sorted(grading["bands"].items(), key=lambda kv: -kv[1])  # [("A", 90), ...]
     split = int(grading.get("population_band_split", 5000))
     floor = float(config["min_coverage"])
+    word = grade_word(config)
     groups: dict[str, list[Score]] = {}
     for score in scores:
         score.band = population_band(towns[score.geoid], split)
@@ -198,8 +210,13 @@ def assign_grades(scores: list[Score], towns: dict[str, Town], config: dict[str,
         else:
             score.grade = None
             score.notes.append(
-                f"no grade: coverage {score.coverage:.0%} is below the {floor:.0%} floor"
+                f"no {word}: coverage {score.coverage:.0%} is below the {floor:.0%} floor"
             )
+    if grading["method"] == "threshold":
+        for members in groups.values():
+            for score in members:
+                score.grade = next(name for name, cutoff in bands if score.readiness >= cutoff)
+        return
     for members in groups.values():
         ranked = sorted(members, key=lambda s: s.readiness)
         n = len(ranked)
@@ -215,9 +232,13 @@ def score_all(
     version: str = "v1",
     scoring_year: int | None = None,
     computed_at: str | None = None,
+    config: dict[str, Any] | None = None,
+    curves: dict[str, Curve] | None = None,
 ) -> list[Score]:
-    config = scoring_config(version)
-    curves = CURVES[version]
+    """Scores every town. Readiness ``version`` by default; pass ``config`` and ``curves``
+    (for example config/momentum.v1.yml with MOMENTUM_CURVES) to score something else."""
+    config = config or scoring_config(version)
+    curves = curves or CURVES[version]
     aliases = input_aliases()
     conditional = conditional_inputs()
     latest = latest_rows(metric_rows)
@@ -242,12 +263,15 @@ def score_all(
 
 def explain(score: Score, town: Town, config: dict[str, Any], curves: dict[str, Curve]) -> str:
     """A complete audit trail for one town: every input, its raw value, curve and points."""
+    kind = config.get("kind", "readiness")
+    word = grade_word(config)
+    how = "absolute cut-offs" if word == "label" else f"curved within population band {score.band}"
     lines = [
         f"{town.name} ({town.legal_type}, {town.county} County, {town.region}) "
         f"— GEOID {town.geoid}",
-        f"readiness {score.readiness:.1f} / 100, grade {score.grade or 'none'} "
-        f"(curved within population band {score.band}), coverage {score.coverage:.0%}, "
-        f"config {score.config_version}, computed {score.computed_at}",
+        f"{kind} {score.readiness:.1f} / 100, {word} {score.grade or 'none'} "
+        f"({how}), coverage {score.coverage:.0%}, "
+        f"config {kind} {score.config_version}, computed {score.computed_at}",
     ]
     lines.extend(f"  note: {n}" for n in score.notes)
     for factor, spec in config["factors"].items():

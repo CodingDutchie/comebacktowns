@@ -15,11 +15,12 @@ from pathlib import Path
 from typing import Any
 
 from pipeline.load.d1 import D1Client
-from pipeline.score.curves import CONTEXT_ONLY, CURVES
+from pipeline.score.curves import CONTEXT_ONLY, CURVES, MOMENTUM_CURVES, Curve
 from pipeline.settings import (
     CONFIG_DIR,
     ROOT,
     load_yaml,
+    momentum_config,
     scoring_config,
     site_config,
     sources_config,
@@ -52,8 +53,11 @@ def latest_metrics(rows: list[dict[str, Any]]) -> dict[str, dict[str, dict[str, 
     return dict(out)
 
 
-def latest_scores(rows: list[dict[str, Any]], version: str) -> dict[str, dict[str, Any]]:
-    """The newest computed_at run for the config version, one entry per town."""
+def latest_run(
+    rows: list[dict[str, Any]], version: str, *, total: str = "readiness", label: str = "grade"
+) -> dict[str, dict[str, Any]]:
+    """The newest computed_at run for the config version, one entry per town. ``total`` and
+    ``label`` name the table's score and grade columns (momentum, label for momentum)."""
     runs = [r for r in rows if r["config_version"] == version]
     if not runs:
         return {}
@@ -63,8 +67,8 @@ def latest_scores(rows: list[dict[str, Any]], version: str) -> dict[str, dict[st
         if row["computed_at"] != newest:
             continue
         out[row["geoid"]] = {
-            "readiness": row["readiness"],
-            "grade": row["grade"],
+            total: row[total],
+            label: row[label],
             "coverage": row["coverage"],
             "computed_at": row["computed_at"],
             "config_version": row["config_version"],
@@ -74,10 +78,17 @@ def latest_scores(rows: list[dict[str, Any]], version: str) -> dict[str, dict[st
     return out
 
 
-def methodology(version: str) -> dict[str, Any]:
-    config = scoring_config(version)
-    curves = CURVES[version]
-    qa = load_yaml(CONFIG_DIR / "qa.yml")
+def latest_scores(rows: list[dict[str, Any]], version: str) -> dict[str, dict[str, Any]]:
+    return latest_run(rows, version)
+
+
+def latest_momentum(rows: list[dict[str, Any]], version: str) -> dict[str, dict[str, Any]]:
+    return latest_run(rows, version, total="momentum", label="label")
+
+
+def factor_block(
+    config: dict[str, Any], curves: dict[str, Curve], qa: dict[str, Any]
+) -> list[dict[str, Any]]:
     factors = []
     for name, spec in config["factors"].items():
         inputs = []
@@ -92,11 +103,25 @@ def methodology(version: str) -> dict[str, Any]:
                 }
             )
         factors.append({"name": name, "weight": spec["weight"], "inputs": inputs})
+    return factors
+
+
+def methodology(version: str, momentum_version: str = "v1") -> dict[str, Any]:
+    config = scoring_config(version)
+    qa = load_yaml(CONFIG_DIR / "qa.yml")
+    mconfig = momentum_config(momentum_version)
     return {
         "version": config["version"],
-        "factors": factors,
+        "factors": factor_block(config, CURVES[version], qa),
         "grading": config["grading"],
         "min_coverage": config["min_coverage"],
+        "momentum": {
+            "version": mconfig["version"],
+            "kind": mconfig.get("kind", "momentum"),
+            "factors": factor_block(mconfig, MOMENTUM_CURVES[momentum_version], qa),
+            "grading": mconfig["grading"],
+            "min_coverage": mconfig["min_coverage"],
+        },
         "suppression": {
             "moe_threshold": 0.4,
             "text": (
@@ -141,7 +166,9 @@ def write_dataset_csv(
     metrics: dict[str, dict[str, dict[str, Any]]],
     scores: dict[str, dict[str, Any]],
     path: Path,
+    momentum: dict[str, dict[str, Any]] | None = None,
 ) -> int:
+    momentum = momentum or {}
     metric_names = sorted({m for per_town in metrics.values() for m in per_town})
     path.parent.mkdir(parents=True, exist_ok=True)
     with path.open("w", newline="") as fh:
@@ -157,12 +184,16 @@ def write_dataset_csv(
             "readiness",
             "grade",
             "coverage",
+            "momentum",
+            "momentum_label",
+            "momentum_coverage",
         ]
         for m in metric_names:
             header += [m, f"{m}_period", f"{m}_suppressed"]
         writer.writerow(header)
         for town in towns:
             score = scores.get(town["geoid"], {})
+            mo = momentum.get(town["geoid"], {})
             row = [
                 town["geoid"],
                 town["slug"],
@@ -174,6 +205,9 @@ def write_dataset_csv(
                 score.get("readiness"),
                 score.get("grade"),
                 score.get("coverage"),
+                mo.get("momentum"),
+                mo.get("label"),
+                mo.get("coverage"),
             ]
             per_town = metrics.get(town["geoid"], {})
             for m in metric_names:
@@ -188,7 +222,11 @@ def write_dataset_csv(
 
 
 def export_site_data(
-    d1: D1Client, *, version: str = "v1", out_dir: Path = SITE_DATA
+    d1: D1Client,
+    *,
+    version: str = "v1",
+    momentum_version: str = "v1",
+    out_dir: Path = SITE_DATA,
 ) -> dict[str, int]:
     out_dir.mkdir(parents=True, exist_ok=True)
     towns = d1.query("SELECT * FROM towns ORDER BY name, county")
@@ -196,30 +234,42 @@ def export_site_data(
 
     metric_rows = read_metrics(d1)
     score_rows = d1.query("SELECT * FROM scores")
+    momentum_rows = d1.query("SELECT * FROM momentum")
     metrics = latest_metrics(metric_rows)
     scores = latest_scores(score_rows, version)
+    momentum = latest_momentum(momentum_rows, momentum_version)
     generated = datetime.now(UTC).isoformat(timespec="seconds")
     payloads: dict[str, Any] = {
         "towns.json": towns,
         "metrics.json": metrics,
         "scores.json": scores,
-        "methodology.json": methodology(version),
+        "momentum.json": momentum,
+        "methodology.json": methodology(version, momentum_version),
         "sources.json": sources_block(metric_rows),
         "meta.json": {
             "generated_at": generated,
             "site": site_config(),
             "town_count": len(towns),
             "scored_count": len(scores),
+            "momentum_count": len(momentum),
         },
     }
     for name, payload in payloads.items():
         (out_dir / name).write_text(json.dumps(payload, indent=None, separators=(",", ":")))
-    rows = write_dataset_csv(towns, metrics, scores, DOWNLOADS / "comebacktowns-dataset.csv")
+    rows = write_dataset_csv(
+        towns, metrics, scores, DOWNLOADS / "comebacktowns-dataset.csv", momentum
+    )
     log.info(
-        "export: %d towns, %d scored, %d metric rows, dataset %d rows",
+        "export: %d towns, %d scored, %d with momentum, %d metric rows, dataset %d rows",
         len(towns),
         len(scores),
+        len(momentum),
         len(metric_rows),
         rows,
     )
-    return {"towns": len(towns), "scored": len(scores), "metric_rows": len(metric_rows)}
+    return {
+        "towns": len(towns),
+        "scored": len(scores),
+        "momentum": len(momentum),
+        "metric_rows": len(metric_rows),
+    }

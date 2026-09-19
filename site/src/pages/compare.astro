@@ -1,7 +1,9 @@
 ---
 import Base from "../layouts/Base.astro";
-import { factorLabels, methodology, towns } from "../lib/data";
+import { factorLabels, methodology, momentumLabels, towns } from "../lib/data";
 const labels = Object.fromEntries(Object.entries(methodology.metrics).map(([k, v]) => [k, { label: v.label, format: v.format }]));
+const readinessFactors = methodology.factors.map((f) => f.name);
+const momentumFactors = methodology.momentum.factors.map((f) => f.name);
 ---
 <Base title="Compare towns" description="Compare up to three New York towns side by side.">
   <h1>Compare towns</h1>
@@ -15,12 +17,14 @@ const labels = Object.fromEntries(Object.entries(methodology.metrics).map(([k, v
   </form>
   <noscript><p class="notice">Comparison needs JavaScript to read the address. Every figure is also on each town's own page.</p></noscript>
   <div id="out" class="table-wrap"></div>
-  <script is:inline define:vars={{ labels, factorLabels }}>
+  <script is:inline define:vars={{ labels, factorLabels, momentumLabels, readinessFactors, momentumFactors }}>
     const fmt = (k, v) => {
       if (v === null || v === undefined) return "—";
       const f = labels[k]?.format ?? "number";
       if (f === "money") return "$" + Math.round(v).toLocaleString("en-US");
       if (f === "percent") return (v * 100).toFixed(1) + "%";
+      if (f === "change") return (v > 0 ? "+" : "") + (v * 100).toFixed(1) + "%";
+      if (f === "per_1k_change") return (v > 0 ? "+" : "") + v.toFixed(1) + " per 1,000";
       if (f === "minutes") return v >= 60 ? `${Math.floor(v / 60)} h ${Math.round(v % 60)} min` : `${Math.round(v)} min`;
       if (f === "per_1k") return v.toFixed(1) + " per 1,000";
       return Math.round(v).toLocaleString("en-US");
@@ -41,8 +45,11 @@ const labels = Object.fromEntries(Object.entries(methodology.metrics).map(([k, v
         let html = `<table><thead><tr><th></th>${rows.map((t) => `<th><a href="/town/${esc(t.slug)}">${esc(t.name)}</a><br><span class="muted small">${esc(t.county)} County</span></th>`).join("")}</tr></thead><tbody>`;
         html += `<tr><td>Grade</td>${rows.map((t) => `<td>${t.grade ? `<span class="grade ${esc(t.grade)}">${esc(t.grade)}</span>` : '<span class="grade none">no grade</span>'}</td>`).join("")}</tr>`;
         html += `<tr><td>Readiness</td>${rows.map((t) => `<td class="num">${t.readiness === null ? "—" : t.readiness.toFixed(1)}</td>`).join("")}</tr>`;
+        html += `<tr><td>Momentum</td>${rows.map((t) => `<td>${t.momentum_label ? `<span class="momentum ${esc(t.momentum_label)}">${esc(momentumLabels[t.momentum_label] ?? t.momentum_label)}</span>` : '<span class="momentum none">no label</span>'} <span class="muted small">${t.momentum === null ? "" : t.momentum.toFixed(1)}</span></td>`).join("")}</tr>`;
         html += `<tr><td>Population</td>${rows.map((t) => `<td class="num">${(t.pop ?? 0).toLocaleString("en-US")}</td>`).join("")}</tr>`;
-        for (const f of Object.keys(factorLabels)) html += `<tr><td>${esc(factorLabels[f])} factor</td>${rows.map((t) => `<td class="num">${t.factors[f] === null || t.factors[f] === undefined ? "—" : (t.factors[f] * 100).toFixed(0)}</td>`).join("")}</tr>`;
+        const factorRow = (f, get) => `<tr><td>${esc(factorLabels[f] ?? f)} factor</td>${rows.map((t) => { const v = get(t)[f]; return `<td class="num">${v === null || v === undefined ? "—" : (v * 100).toFixed(0)}</td>`; }).join("")}</tr>`;
+        for (const f of readinessFactors) html += factorRow(f, (t) => t.factors);
+        for (const f of momentumFactors) html += factorRow(f, (t) => t.mfactors ?? {});
         for (const k of Object.keys(rows[0]?.facts ?? {})) html += `<tr><td>${esc(labels[k]?.label ?? k)}</td>${rows.map((t) => cell(t, k)).join("")}</tr>`;
         html += "</tbody></table>";
         document.getElementById("out").innerHTML = rows.length ? html : '<p class="notice">No matching towns. Use the town slugs, e.g. catskill-ny.</p>';

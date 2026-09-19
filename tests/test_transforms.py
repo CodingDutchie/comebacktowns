@@ -20,7 +20,7 @@ from pipeline.transform.osrm import crow_metrics, osrm_metrics
 from pipeline.transform.permits import parse_place_file, permits_metrics
 from pipeline.transform.popest import popest_metrics
 from pipeline.transform.rail import rail_metrics
-from pipeline.transform.zillow import latest_values, zillow_metrics
+from pipeline.transform.zillow import latest_values, ny_median_change, read_places, zillow_metrics
 
 AS = "2026-09-18"
 
@@ -197,6 +197,14 @@ def test_popest_metrics(ctx):
         and rows[("3613002", "population")].period == "2024"
     )
     assert abs(rows[("3613002", "population_change")].value - 100 / 3800) < 1e-9
+    # the momentum benchmark: the median change across every NY place in the file, which
+    # in the fixture is 0 (four flat places, three growing ones)
+    bench = rows[("3613002", "population_change_ny_median")]
+    assert (
+        bench.value == 0
+        and bench.period == "2020-2024"
+        and bench.r2_key == rows[("3613002", "population")].r2_key
+    )
 
 
 PERMIT_HEADER = "h1\nh2\n \n"
@@ -239,6 +247,11 @@ def test_permits_rolling_mean_and_suppression(ctx):
     assert catskill.r2_key.endswith("ne2025a.txt")
     kingston = rows[("3639727", "permits_per_1k", "2023-2025")]
     assert kingston.suppressed == 1  # 2024 reported 7 months
+    # momentum: the latest 3-year rate minus the one ending two years earlier
+    change = rows[("3613002", "permit_rate_change", "2021-2023 to 2023-2025")]
+    assert abs(change.value - ((3 + 6 + 9) / 3 - (4 + 4 + 3) / 3) / 3.9) < 1e-9
+    assert change.suppressed == 0 and change.r2_key.endswith("ne2025a.txt")
+    assert rows[("3639727", "permit_rate_change", "2021-2023 to 2023-2025")].suppressed == 1
     assert rows[("3639727", "permit_units", "2024")].value == 50
     assert parse_place_file((PERMIT_HEADER + permit_line(2025, "13002", 12, 1)).encode())[
         "13002"
@@ -259,6 +272,41 @@ def test_zillow_latest_month_and_gaps(ctx):
         ("3613002", "zhvi", "2026-07", 255000.0),
         ("3613002", "zori", "2026-06", 1200.0),
     ]
+
+
+def test_zillow_one_year_change_and_ny_benchmark(ctx):
+    months = [f"2025-{m:02d}-28" for m in range(7, 13)] + [f"2026-{m:02d}-28" for m in range(1, 9)]
+    header = "RegionID,SizeRank,RegionName,RegionType,StateName,State,Metro,CountyName," + ",".join(
+        months
+    )
+    catskill = [200000 + 1000 * i for i in range(14)]  # +6% over the year (2026-08 vs 2025-08)
+    kingston = [300000] * 14  # flat
+    elsewhere = [100000] * 13 + [120000]  # +20%, not in scope but part of the benchmark
+    gap = [""] * 2 + [50000] * 12  # no value twelve months before its latest month
+    csv = "\n".join(
+        [
+            header,
+            "1,1,Catskill,city,NY,NY,,Greene County," + ",".join(map(str, catskill)),
+            "2,2,Kingston,city,NY,NY,,Ulster County," + ",".join(map(str, kingston)),
+            "3,3,Elsewhere,city,NY,NY,,Albany County," + ",".join(map(str, elsewhere)),
+            "4,4,Gappy,city,NY,NY,,Albany County," + ",".join(map(str, gap)),
+            "5,5,Catskill,city,PA,PA,,Greene County," + ",".join(["1"] * 14),
+        ]
+    ).encode()
+    places = read_places(csv)
+    assert places[("Catskill", "Greene County")].change_1y == pytest.approx(213000 / 201000 - 1)
+    assert places[("Gappy", "Albany County")].change_1y is None
+    assert ny_median_change(places) == pytest.approx(213000 / 201000 - 1)  # median of 3 changes
+    ctx.store.put_bytes(f"raw/zillow/{AS}/zhvi_city.csv", csv)
+    ctx.store.put_bytes(f"raw/zillow/{AS}/zori_city.csv", csv)
+    rows = {(r.geoid, r.metric): r for r in zillow_metrics(ctx)}
+    change = rows[("3613002", "zhvi_change_1y")]
+    assert change.value == pytest.approx(213000 / 201000 - 1) and change.period == "2026-08"
+    bench = rows[("3613002", "zhvi_change_1y_ny_median")]
+    assert bench.value == change.value and bench.period == "2026-08"
+    assert rows[("3639727", "zhvi_change_1y")].value == 0
+    assert rows[("3639727", "zhvi_change_1y_ny_median")].value == bench.value
+    assert change.r2_key == f"raw/zillow/{AS}/zhvi_city.csv"
 
 
 SQUARE_PLACES = {

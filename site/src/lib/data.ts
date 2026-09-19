@@ -53,6 +53,16 @@ export interface Score {
   inputs: Record<string, ScoreInput>;
 }
 
+export interface Momentum {
+  momentum: number;
+  label: string | null; // rising | steady | fading
+  coverage: number;
+  computed_at: string;
+  config_version: string;
+  factor_scores: Record<string, number | null>;
+  inputs: Record<string, ScoreInput>;
+}
+
 export interface MethodologyInput {
   name: string;
   metric: string;
@@ -61,11 +71,20 @@ export interface MethodologyInput {
   conditional: boolean;
 }
 
+export interface MomentumMethodology {
+  version: string;
+  kind: string;
+  factors: { name: string; weight: number; inputs: MethodologyInput[] }[];
+  grading: { method: string; bands: Record<string, number> };
+  min_coverage: number;
+}
+
 export interface Methodology {
   version: string;
   factors: { name: string; weight: number; inputs: MethodologyInput[] }[];
   grading: { method: string; bands: Record<string, number>; curve_within: string; population_band_split: number };
   min_coverage: number;
+  momentum: MomentumMethodology;
   suppression: { moe_threshold: number; text: string };
   bounds: Record<string, [number, number]>;
   metrics: Record<string, { label: string; format: string; description: string; key_number?: number }>;
@@ -88,6 +107,7 @@ export interface Meta {
   site: { SITE_NAME: string; SITE_DOMAIN: string; CONTACT_EMAIL: string; TAGLINE: string; STATE_ABBR: string };
   town_count: number;
   scored_count: number;
+  momentum_count: number;
 }
 
 function dataDir(): URL {
@@ -103,6 +123,7 @@ function load<T>(name: string): T {
 export const towns: Town[] = load<Town[]>("towns.json");
 export const metrics: Record<string, Record<string, MetricEntry>> = load("metrics.json");
 export const scores: Record<string, Score> = load("scores.json");
+export const momentum: Record<string, Momentum> = load("momentum.json");
 export const methodology: Methodology = load("methodology.json");
 export const sources: Source[] = load("sources.json");
 export const meta: Meta = load("meta.json");
@@ -135,6 +156,15 @@ export const factorLabels: Record<string, string> = {
   price_headroom: "Price headroom",
   services: "Services",
   civic_capacity: "Civic capacity",
+  prices: "Prices",
+  building: "Building",
+  people: "People",
+};
+
+export const momentumLabels: Record<string, string> = {
+  rising: "Rising",
+  steady: "Steady",
+  fading: "Fading",
 };
 
 export const factorBlurbs: Record<string, string> = {
@@ -144,4 +174,7 @@ export const factorBlurbs: Record<string, string> = {
   price_headroom: "Whether prices leave room to rise without having already been found.",
   services: "Broadband, families with children, and a hospital within reach.",
   civic_capacity: "Whether the state has backed the downtown with a revitalization award.",
+  prices: "Whether home values rose faster over the past year than in the typical New York place.",
+  building: "Whether more homes are being permitted than two years ago, per resident.",
+  people: "Whether the population has held up better since 2020 than in the typical New York place.",
 };

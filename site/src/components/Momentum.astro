@@ -1,0 +1,14 @@
+---
+import { momentumLabels } from "../lib/data";
+
+interface Props { label: string | null; big?: boolean; }
+const { label, big = false } = Astro.props;
+const arrow = label === "rising" ? "▲" : label === "fading" ? "▼" : label === "steady" ? "▶" : "";
+---
+{label ? (
+  <span class:list={["momentum", label, { big }]} aria-label={`Momentum: ${momentumLabels[label] ?? label}`}>
+    <span aria-hidden="true">{arrow}</span> {momentumLabels[label] ?? label}
+  </span>
+) : (
+  <span class:list={["momentum", "none", { big }]}>no momentum label</span>
+)}

@@ -7,9 +7,18 @@ import pytest
 from pipeline.qa import QAError
 from pipeline.qa.pilot import PilotFixtureMissingError, check_pilot, load_pilot
 from pipeline.scope import Town
-from pipeline.score.curves import CURVES_V1, Linear, Peak, Recency
+from pipeline.score.curves import (
+    CONTEXT_ONLY,
+    CURVES_V1,
+    MOMENTUM_CURVES,
+    MOMENTUM_CURVES_V1,
+    Linear,
+    Peak,
+    Recency,
+    Relative,
+)
 from pipeline.score.engine import assign_grades, explain, latest_rows, score_all
-from pipeline.settings import scoring_config
+from pipeline.settings import momentum_config, scoring_config
 
 
 def town(geoid: str, name: str, pop: int) -> Town:
@@ -77,11 +86,69 @@ def test_curves_are_explicit():
 
 
 def test_every_scoring_input_has_a_curve_or_is_context():
-    from pipeline.score.curves import CONTEXT_ONLY
-
     for factor in scoring_config("v1")["factors"].values():
         for name in factor["inputs"]:
             assert name in CURVES_V1 or name in CONTEXT_ONLY, name
+    for factor in momentum_config("v1")["factors"].values():
+        for name in factor["inputs"]:
+            assert name in MOMENTUM_CURVES_V1 or name in CONTEXT_ONLY, name
+
+
+def test_relative_curve_keeps_pace_at_the_midpoint():
+    rel = Relative("x", "x_bench", Linear("d", zero_at=-0.05, one_at=0.05, unit=" pp", scale=100))
+    assert rel(0.06, x_bench=0.06) == pytest.approx(0.5)
+    assert rel(0.10, x_bench=0.05) == 1.0 and rel(-0.02, x_bench=0.04) == 0.0
+    with pytest.raises(ValueError, match="needs x_bench"):
+        rel(0.1)
+    assert "scores 1 at 5 pp or more" in rel.describe() and rel.describe().startswith(
+        "x minus x_bench"
+    )
+
+
+MOMENTUM = {
+    "zhvi_change_1y": 0.10,
+    "zhvi_change_1y_ny_median": 0.05,  # +5 pp -> 1
+    "permit_rate_change": 0.0,  # keeping pace -> 0.5
+    "population_change": 0.0,
+    "population_change_ny_median": -0.01,  # +1 pp -> 0.667
+}
+
+
+def test_momentum_scores_and_threshold_labels():
+    rising = town("3600011", "Rising", 3000)
+    fading = town("3600012", "Fading", 3000)
+    thin = town("3600013", "Thin", 3000)
+    rows = [row(rising.geoid, m, v) for m, v in MOMENTUM.items()]
+    rows += [
+        row(fading.geoid, "permit_rate_change", -2.0),
+        row(fading.geoid, "population_change", -0.01),
+        row(fading.geoid, "population_change_ny_median", -0.01),
+        row(thin.geoid, "population_change", 0.05),
+        row(thin.geoid, "population_change_ny_median", -0.01),
+    ]
+    config = momentum_config("v1")
+    scores = {
+        s.geoid: s
+        for s in score_all(
+            [rising, fading, thin], rows, config=config, curves=MOMENTUM_CURVES["v1"]
+        )
+    }
+    r = scores[rising.geoid]
+    assert r.factor_scores == {
+        "prices": 1.0,
+        "building": 0.5,
+        "people": pytest.approx(2 / 3, abs=1e-4),
+    }
+    assert r.readiness == pytest.approx(100 * (0.4 * 1 + 0.3 * 0.5 + 0.3 * 2 / 3), abs=0.05)
+    assert r.grade == "rising" and r.coverage == 1.0 and r.config_version == "v1"
+    f = scores[fading.geoid]
+    assert f.inputs["zhvi_change_1y"].status == "missing" and f.coverage == pytest.approx(2 / 3)
+    assert f.readiness == pytest.approx(25.0) and f.grade == "fading"
+    t = scores[thin.geoid]
+    assert t.grade is None and any("no label" in n for n in t.notes)
+    text = explain(r, rising, config, MOMENTUM_CURVES["v1"])
+    assert "momentum " in text and "label rising" in text and "absolute cut-offs" in text
+    assert "minus zhvi_change_1y_ny_median" in text
 
 
 def test_latest_rows_keeps_newest_period():

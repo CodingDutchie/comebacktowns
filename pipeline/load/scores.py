@@ -1,4 +1,5 @@
-"""Write scores to D1. Each run adds a new computed_at; nothing is overwritten."""
+"""Write scores and momentum runs to D1. Each run adds a new computed_at; nothing is
+overwritten."""
 
 from __future__ import annotations
 
@@ -12,6 +13,28 @@ def load_scores(scores: list[Score], d1: D1Client) -> int:
     return d1.upsert(
         "scores",
         SCORE_COLUMNS,
+        [s.row() for s in scores],
+        conflict=["geoid", "config_version", "computed_at"],
+    )
+
+
+MOMENTUM_COLUMNS = [
+    "geoid",
+    "config_version",
+    "computed_at",
+    "momentum",
+    "label",
+    "factor_scores",
+    "factor_inputs",
+    "coverage",
+]
+
+
+def load_momentum(scores: list[Score], d1: D1Client) -> int:
+    """A momentum run: the engine's total becomes ``momentum`` and its grade the ``label``."""
+    return d1.upsert(
+        "momentum",
+        MOMENTUM_COLUMNS,
         [s.row() for s in scores],
         conflict=["geoid", "config_version", "computed_at"],
     )

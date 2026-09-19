@@ -61,7 +61,7 @@ jobs:
       - name: Purge the API index so it rebuilds from the new data
         run: |
           ns=$(python3 -c "import tomllib; print([k for k in tomllib.load(open('wrangler.toml','rb'))['kv_namespaces'] if k['binding']=='CACHE'][0]['id'])")
-          npx --yes wrangler@4 kv key delete --namespace-id "$ns" --remote "index:v1" || echo "index key not present"
+          npx --yes wrangler@4 kv key delete --namespace-id "$ns" --remote "index:v2" || echo "index key not present"
       - name: Smoke-check the live site
         run: |
           set -euo pipefail
