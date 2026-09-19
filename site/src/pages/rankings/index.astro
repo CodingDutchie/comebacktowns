@@ -2,7 +2,7 @@
 import Base from "../../layouts/Base.astro";
 import { rankings } from "../../lib/rankings";
 ---
-<Base title="Rankings" description="Rankings of New York towns by readiness, price headroom and value near a city.">
+<Base title="Rankings" description="Rankings of New York towns by readiness, momentum, price headroom and value near a city.">
   <h1>Rankings</h1>
   <ul>{rankings.map((r) => <li><a href={`/rankings/${r.slug}`}>{r.title}</a> <span class="muted">— {r.description}</span></li>)}</ul>
 </Base>

@@ -1,0 +1,24 @@
+# Momentum scoring, version 1: is anything actually happening? Same rules as readiness
+# (config/scoring.v1.yml): never edit in place once published; a change in weights or curves
+# is a new file (momentum.v2.yml) and a note in the PR explaining what moved and why.
+#
+# Every input is a change over time, and each is judged against a benchmark: home values and
+# population against the median New York place in the same source file (so a statewide boom
+# or drain does not read as momentum everywhere), permits against the town's own rate two
+# years earlier. A town keeping pace with its benchmark scores 0.5 on each curve, which makes
+# 50 the "steady" centre of the 0-100 scale; the labels are absolute cut-offs, not a curve.
+#
+# Rent (zori_change_1y) is produced and shown but not scored: Zillow publishes a rent index
+# for 23 of the 148 towns, so scoring it would lower every other town's coverage without
+# adding a signal. The IRS migration and HUD vacancy feeds named in BUILD_PLAN.md §12 are
+# still to come and will be a new version.
+version: v1
+kind: momentum
+factors:
+  prices:   {weight: 0.40, inputs: [zhvi_change_1y, zhvi_change_1y_ny_median]}
+  building: {weight: 0.30, inputs: [permit_rate_change]}
+  people:   {weight: 0.30, inputs: [population_change, population_change_ny_median]}
+grading:
+  method: threshold                 # absolute cut-offs on the 0-100 momentum score
+  bands: {rising: 60, steady: 40, fading: 0}
+min_coverage: 0.6                   # at least two of the three scored inputs

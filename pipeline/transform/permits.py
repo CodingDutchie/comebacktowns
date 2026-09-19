@@ -4,6 +4,10 @@ QA rule 2: the headline figure is the mean of the latest three annual files, so 
 large project cannot spike a small town. A year in which the place reported fewer than
 twelve months is carried (the Census annual total includes its imputation for the missing
 months) but the rolling rate is marked suppressed, which the site shows as such.
+
+For momentum, ``permit_rate_change`` is the latest three-year rate minus the three-year
+rate ending two years earlier (five consecutive annual files), in units per 1,000 residents
+a year; it is suppressed when any of those five years was short.
 """
 
 from __future__ import annotations
@@ -16,6 +20,7 @@ from dataclasses import dataclass
 from pipeline.transform import Context, MetricRow
 
 SOURCE_ID = "permits"
+SHIFT = 2  # years between the two windows compared for momentum
 # Column positions in the annual place file (two header rows, then a blank line).
 COL_STATE, COL_FIPS_PLACE, COL_CBSA, COL_MONTHS = 1, 5, 9, 15
 COL_UNITS = (18, 21, 24, 27)  # 1-unit, 2-unit, 3-4 unit, 5+ unit dwellings permitted
@@ -104,6 +109,7 @@ def permits_metrics(ctx: Context, window: int = 3) -> list[MetricRow]:
         recent = entries[-window:]
         if len(recent) < window or not town.pop_latest:
             continue
+        per_1k = town.pop_latest / 1000
         mean_units = sum(e.units for e in recent) / window
         period = f"{recent[0].year}-{recent[-1].year}"
         suppressed = int(any(e.months_reported < 12 for e in recent))
@@ -112,8 +118,28 @@ def permits_metrics(ctx: Context, window: int = 3) -> list[MetricRow]:
                 geoid=town.geoid,
                 metric="permits_per_1k",
                 period=period,
-                value=mean_units / (town.pop_latest / 1000),
+                value=mean_units / per_1k,
                 suppressed=suppressed,
+                source_id=SOURCE_ID,
+                as_of=ctx.as_of_for(SOURCE_ID),
+                r2_key=recent[-1].r2_key,
+            )
+        )
+        span = entries[-(window + SHIFT) :]
+        consecutive = len(span) == window + SHIFT and all(
+            b.year == a.year + 1 for a, b in zip(span, span[1:], strict=False)
+        )
+        if not consecutive:
+            continue
+        earlier = span[:window]
+        change = (mean_units - sum(e.units for e in earlier) / window) / per_1k
+        rows.append(
+            MetricRow(
+                geoid=town.geoid,
+                metric="permit_rate_change",
+                period=f"{earlier[0].year}-{earlier[-1].year} to {period}",
+                value=change,
+                suppressed=int(any(e.months_reported < 12 for e in span)),
                 source_id=SOURCE_ID,
                 as_of=ctx.as_of_for(SOURCE_ID),
                 r2_key=recent[-1].r2_key,

@@ -3,7 +3,8 @@ import Base from "../../layouts/Base.astro";
 import Grade from "../../components/Grade.astro";
 import Figure from "../../components/Figure.astro";
 import FactorCard from "../../components/FactorCard.astro";
-import { band, bandKey, meta, methodology, metric, scores, sourceById, towns, type Town } from "../../lib/data";
+import Momentum from "../../components/Momentum.astro";
+import { band, bandKey, meta, methodology, metric, momentum, momentumLabels, scores, sourceById, towns, type Town } from "../../lib/data";
 import { formatValue, label, population, pct, score1 } from "../../lib/format";
 
 export function getStaticPaths() {
@@ -11,14 +12,15 @@ export function getStaticPaths() {
 }
 const { town } = Astro.props as { town: Town };
 const score = scores[town.geoid];
+const mo = momentum[town.geoid];
 const m = (name: string) => metric(town.geoid, name);
 const permits = m("permit_units");
 const peers = towns
   .filter((t) => t.region === town.region && bandKey(t) === bandKey(town) && scores[t.geoid])
   .sort((a, b) => scores[b.geoid].readiness - scores[a.geoid].readiness);
-const extraMetrics = ["median_household_income", "vacancy_rate", "poverty_rate", "population_change", "permits_per_1k", "nrhp_district_count", "drive_min_regional_hub", "drive_min_nearest_hospital", "dri_award_count", "zhvi", "zori"];
+const extraMetrics = ["median_household_income", "vacancy_rate", "poverty_rate", "population_change", "permits_per_1k", "nrhp_district_count", "drive_min_regional_hub", "drive_min_nearest_hospital", "dri_award_count", "zhvi", "zori", "zhvi_change_1y", "zori_change_1y", "permit_rate_change"];
 const provenance = new Map<string, { source: string; period: string; as_of: string; r2_key: string; metrics: string[] }>();
-for (const name of [...Object.keys(score?.inputs ?? {}), "median_home_value", "median_gross_rent", "drive_min_nyc", "osm_business_count", "permit_units", ...extraMetrics]) {
+for (const name of [...Object.keys(score?.inputs ?? {}), ...Object.keys(mo?.inputs ?? {}), "median_home_value", "median_gross_rent", "drive_min_nyc", "osm_business_count", "permit_units", ...extraMetrics]) {
   const e = m(methodology.metrics[name] ? name : name);
   if (!e) continue;
   const key = e.r2_key;
@@ -27,8 +29,9 @@ for (const name of [...Object.keys(score?.inputs ?? {}), "median_home_value", "m
   provenance.set(key, p);
 }
 const title = `${town.name}, NY`;
+const momentumText = mo?.label ? `, momentum ${momentumLabels[mo.label].toLowerCase()}` : "";
 const description = score
-  ? `${town.name} (${town.legal_type}, ${town.county} County) scores ${score1(score.readiness)} readiness, grade ${score.grade ?? "not graded"}, on ${meta.site.SITE_NAME}.`
+  ? `${town.name} (${town.legal_type}, ${town.county} County) scores ${score1(score.readiness)} readiness, grade ${score.grade ?? "not graded"}${momentumText}, on ${meta.site.SITE_NAME}.`
   : `${town.name}, ${town.county} County, on ${meta.site.SITE_NAME}.`;
 const jsonLd = {
   "@context": "https://schema.org",
@@ -55,6 +58,14 @@ const jsonLd = {
         {score && !score.grade && <div class="small"><a href="/methodology#coverage">Why no grade?</a></div>}
       </div>
     </div>
+    <div class="score">
+      <Momentum label={mo?.label ?? null} big />
+      <div>
+        <div class="num">{score1(mo?.momentum)}<span class="muted small"> / 100</span></div>
+        <div class="muted small">momentum · coverage {pct(mo?.coverage)} · 50 is keeping pace</div>
+        {mo && !mo.label && <div class="small"><a href="/methodology#momentum-coverage">Why no label?</a></div>}
+      </div>
+    </div>
   </div>
 
   <h2>Five numbers</h2>
@@ -70,6 +81,10 @@ const jsonLd = {
   <p class="muted small">Each factor is the mean of its usable inputs; a missing or suppressed input is left out and lowers coverage. Open a card for every input, its raw value, the curve applied and the points it contributes.</p>
   {score ? methodology.factors.map((f) => <FactorCard factor={f.name} weight={f.weight} score={score} inputs={f.inputs} />) : <p class="notice">This town has not been scored yet.</p>}
 
+  <h2>Momentum</h2>
+  <p class="muted small">Is anything actually happening? Three changes over time, each judged against a benchmark: the typical New York place for home values and population, the town's own earlier rate for permits. Keeping pace scores 50; 60 and above is rising, below 40 is fading. Not curved against other towns.</p>
+  {mo ? methodology.momentum.factors.map((f) => <FactorCard factor={f.name} weight={f.weight} score={mo} inputs={f.inputs} />) : <p class="notice">This town has no momentum score yet.</p>}
+
   <h2>More figures</h2>
   <div class="cards">
     {extraMetrics.filter((n) => m(n)).map((n) => <Figure name={n} entry={m(n)} />)}
@@ -79,7 +94,7 @@ const jsonLd = {
   <p class="muted small">{town.region} towns in the same population band ({band(town)}), by readiness.</p>
   <div class="table-wrap">
     <table>
-      <thead><tr><th>#</th><th>Town</th><th class="num">Population</th><th>Grade</th><th class="num">Readiness</th><th class="num">Home value</th><th class="num">Drive to NYC</th></tr></thead>
+      <thead><tr><th>#</th><th>Town</th><th class="num">Population</th><th>Grade</th><th class="num">Readiness</th><th>Momentum</th><th class="num">Home value</th><th class="num">Drive to NYC</th></tr></thead>
       <tbody>
         {peers.map((t, i) => (
           <tr class={t.geoid === town.geoid ? "me" : ""}>
@@ -88,6 +103,7 @@ const jsonLd = {
             <td class="num">{population(t.pop_latest)}</td>
             <td><Grade grade={scores[t.geoid].grade} /></td>
             <td class="num">{score1(scores[t.geoid].readiness)}</td>
+            <td><Momentum label={momentum[t.geoid]?.label ?? null} /></td>
             <td class="num">{(() => { const e = metric(t.geoid, "median_home_value"); return e && e.value !== null && !e.suppressed ? formatValue("median_home_value", e.value) : "n/a"; })()}</td>
             <td class="num">{(() => { const e = metric(t.geoid, "drive_min_nyc"); return e && e.value !== null ? formatValue("drive_min_nyc", e.value) : "n/a"; })()}</td>
           </tr>
@@ -109,5 +125,5 @@ const jsonLd = {
       </tbody>
     </table>
   </div>
-  <p class="small muted">Score computed {score?.computed_at?.slice(0, 10)} with methodology {score?.config_version}. Something wrong? <a href="/about#corrections">Send a correction</a>.</p>
+  <p class="small muted">Readiness computed {score?.computed_at?.slice(0, 10)} with methodology {score?.config_version}{mo ? `; momentum computed ${mo.computed_at.slice(0, 10)} with momentum methodology ${mo.config_version}` : ""}. Something wrong? <a href="/about#corrections">Send a correction</a>.</p>
 </Base>

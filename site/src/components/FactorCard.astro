@@ -2,7 +2,7 @@
 import { factorBlurbs, factorLabels, type Score } from "../lib/data";
 import { formatValue, label } from "../lib/format";
 
-interface Props { factor: string; weight: number; score: Score; inputs: { name: string; metric: string; context_only: boolean; curve: string | null }[]; }
+interface Props { factor: string; weight: number; score: Pick<Score, "factor_scores" | "inputs">; inputs: { name: string; metric: string; context_only: boolean; curve: string | null }[]; }
 const { factor, weight, score, inputs } = Astro.props;
 const fs = score.factor_scores[factor];
 ---

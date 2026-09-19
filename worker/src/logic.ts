@@ -24,6 +24,14 @@ export interface ScoreRow {
   computed_at: string;
 }
 
+export interface MomentumRow {
+  geoid: string;
+  momentum: number;
+  label: string | null;
+  coverage: number;
+  computed_at: string;
+}
+
 export interface MetricRow {
   geoid: string;
   metric: string;
@@ -53,6 +61,8 @@ export interface IndexedTown {
   grade: string | null;
   coverage: number | null;
   factors: Record<string, number | null>;
+  momentum: number | null;
+  momentum_label: string | null; // rising | steady | fading
   facts: Record<string, Fact>;
   search: string; // lower-cased haystack
 }
@@ -60,6 +70,7 @@ export interface IndexedTown {
 export interface TownIndex {
   built_at: string;
   computed_at: string | null;
+  momentum_computed_at: string | null;
   towns: IndexedTown[];
 }
 
@@ -85,16 +96,24 @@ export const FACT_METRICS = [
   "has_nrhp_district",
 ] as const;
 
+function latestRunOf<T extends { computed_at: string }>(rows: T[]): string | null {
+  return rows.reduce<string | null>((m, r) => (m === null || r.computed_at > m ? r.computed_at : m), null);
+}
+
 export function buildIndex(
   towns: TownRow[],
   scores: ScoreRow[],
   metrics: MetricRow[],
+  momentum: MomentumRow[] = [],
   now: () => string = () => new Date().toISOString(),
 ): TownIndex {
-  // latest scores run only
-  const latestRun = scores.reduce<string | null>((m, s) => (m === null || s.computed_at > m ? s.computed_at : m), null);
+  // latest scores and momentum runs only
+  const latestRun = latestRunOf(scores);
   const scoreBy = new Map<string, ScoreRow>();
   for (const s of scores) if (s.computed_at === latestRun) scoreBy.set(s.geoid, s);
+  const latestMomentum = latestRunOf(momentum);
+  const momentumBy = new Map<string, MomentumRow>();
+  for (const m of momentum) if (m.computed_at === latestMomentum) momentumBy.set(m.geoid, m);
   // latest period per (geoid, metric)
   const facts = new Map<string, Record<string, Fact>>();
   for (const m of metrics) {
@@ -105,6 +124,7 @@ export function buildIndex(
   }
   const out: IndexedTown[] = towns.map((t) => {
     const s = scoreBy.get(t.geoid);
+    const mo = momentumBy.get(t.geoid);
     return {
       geoid: t.geoid,
       slug: t.slug,
@@ -120,12 +140,14 @@ export function buildIndex(
       grade: s ? s.grade : null,
       coverage: s ? s.coverage : null,
       factors: s ? (JSON.parse(s.factor_scores) as Record<string, number | null>) : {},
+      momentum: mo ? mo.momentum : null,
+      momentum_label: mo ? mo.label : null,
       facts: facts.get(t.geoid) ?? {},
       search: `${t.name} ${t.county} ${t.slug}`.toLowerCase(),
     };
   });
   out.sort((a, b) => a.name.localeCompare(b.name));
-  return { built_at: now(), computed_at: latestRun, towns: out };
+  return { built_at: now(), computed_at: latestRun, momentum_computed_at: latestMomentum, towns: out };
 }
 
 function fold(s: string): string {
@@ -140,6 +162,7 @@ export interface SearchHit {
   region: string;
   grade: string | null;
   readiness: number | null;
+  momentum_label: string | null;
 }
 
 /** Prefix matches on the name rank first, then word-prefix, then substring. */
@@ -164,6 +187,7 @@ export function search(index: TownIndex, q: string, limit = 10): SearchHit[] {
     region: t.region,
     grade: t.grade,
     readiness: t.readiness,
+    momentum_label: t.momentum_label,
   }));
 }
 
@@ -173,19 +197,21 @@ export interface FilterParams {
   band?: "under_5000" | "5000_plus";
   grade?: string; // comma-separated letters
   min_readiness?: number;
+  momentum?: string; // comma-separated labels: rising, steady, fading
+  min_momentum?: number;
   max_home_value?: number;
   max_drive_nyc?: number;
   max_drive_hub?: number;
   min_population?: number;
   max_population?: number;
   has_award?: boolean;
-  sort?: "readiness" | "home_value" | "drive_nyc" | "population" | "name";
+  sort?: "readiness" | "momentum" | "home_value" | "drive_nyc" | "population" | "name";
   order?: "asc" | "desc";
   limit?: number;
   offset?: number;
 }
 
-const NUMERIC: (keyof FilterParams)[] = ["min_readiness", "max_home_value", "max_drive_nyc", "max_drive_hub", "min_population", "max_population", "limit", "offset"];
+const NUMERIC: (keyof FilterParams)[] = ["min_readiness", "min_momentum", "max_home_value", "max_drive_nyc", "max_drive_hub", "min_population", "max_population", "limit", "offset"];
 
 /** Parses query-string values; unknown keys are ignored, bad numbers are errors. */
 export function parseFilter(params: URLSearchParams): { ok: true; value: FilterParams } | { ok: false; error: string } {
@@ -200,12 +226,12 @@ export function parseFilter(params: URLSearchParams): { ok: true; value: FilterP
       if (v !== "under_5000" && v !== "5000_plus") return { ok: false, error: "band must be under_5000 or 5000_plus" };
       out.band = v;
     } else if (k === "sort") {
-      if (!["readiness", "home_value", "drive_nyc", "population", "name"].includes(v)) return { ok: false, error: "unknown sort" };
+      if (!["readiness", "momentum", "home_value", "drive_nyc", "population", "name"].includes(v)) return { ok: false, error: "unknown sort" };
       out.sort = v as FilterParams["sort"];
     } else if (k === "order") {
       if (v !== "asc" && v !== "desc") return { ok: false, error: "order must be asc or desc" };
       out.order = v;
-    } else if (k === "region" || k === "county" || k === "grade") out[k] = v;
+    } else if (k === "region" || k === "county" || k === "grade" || k === "momentum") out[k] = v;
   }
   return { ok: true, value: out };
 }
@@ -216,12 +242,15 @@ function usable(f: Fact | undefined): f is Fact & { value: number } {
 
 export function filter(index: TownIndex, p: FilterParams): { total: number; towns: IndexedTown[] } {
   const grades = p.grade ? new Set(p.grade.toUpperCase().split(",").map((g) => g.trim())) : null;
+  const labels = p.momentum ? new Set(p.momentum.toLowerCase().split(",").map((g) => g.trim())) : null;
   let rows = index.towns.filter((t) => {
     if (p.region && fold(t.region) !== fold(p.region)) return false;
     if (p.county && fold(t.county) !== fold(p.county)) return false;
     if (p.band && t.band !== p.band) return false;
     if (grades && !(t.grade && grades.has(t.grade))) return false;
     if (p.min_readiness !== undefined && !(t.readiness !== null && t.readiness >= p.min_readiness)) return false;
+    if (labels && !(t.momentum_label && labels.has(t.momentum_label))) return false;
+    if (p.min_momentum !== undefined && !(t.momentum !== null && t.momentum >= p.min_momentum)) return false;
     if (p.max_home_value !== undefined) {
       const f = t.facts.median_home_value;
       if (!usable(f) || f.value > p.max_home_value) return false;
@@ -251,6 +280,8 @@ export function filter(index: TownIndex, p: FilterParams): { total: number; town
         return usable(t.facts.drive_min_nyc) ? t.facts.drive_min_nyc.value : Infinity;
       case "population":
         return t.population ?? -Infinity;
+      case "momentum":
+        return t.momentum ?? -Infinity;
       case "name":
         return t.name;
       default:

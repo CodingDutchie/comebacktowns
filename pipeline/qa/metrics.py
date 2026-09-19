@@ -46,17 +46,23 @@ def validate_metrics(rows: list[MetricRow], config: dict[str, Any] | None = None
 
 
 def coverage_report(
-    rows: list[MetricRow], town_count: int, config: dict[str, Any] | None = None
+    rows: list[MetricRow],
+    town_count: int,
+    config: dict[str, Any] | None = None,
+    scoring: dict[str, Any] | None = None,
 ) -> dict[str, float]:
-    """Share of towns with a usable (present, not suppressed) value per scoring input."""
+    """Share of towns with a usable (present, not suppressed) value per scoring input.
+
+    ``scoring`` is the factor config to report on: readiness v1 unless given."""
     config = config or qa_config()
+    scoring = scoring or scoring_config("v1")
     aliases = config["coverage"].get("input_aliases", {})
     usable: dict[str, set[str]] = defaultdict(set)
     for row in rows:
         if row.value is not None and not row.suppressed:
             usable[row.metric].add(row.geoid)
     report: dict[str, float] = {}
-    for factor in scoring_config("v1")["factors"].values():
+    for factor in scoring["factors"].values():
         for name in factor["inputs"]:
             metric = aliases.get(name, name)
             report[name] = len(usable.get(metric, set())) / town_count if town_count else 0.0

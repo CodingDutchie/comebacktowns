@@ -1,11 +1,14 @@
 ---
 import Base from "../layouts/Base.astro";
 import Grade from "../components/Grade.astro";
-import { bandKey, meta, scores, towns, usingSampleData } from "../lib/data";
+import Momentum from "../components/Momentum.astro";
+import { bandKey, meta, momentum, scores, towns, usingSampleData } from "../lib/data";
 import { score1 } from "../lib/format";
 
 const site = meta.site;
 const graded = towns.filter((t) => scores[t.geoid]);
+const rising = towns.filter((t) => momentum[t.geoid]?.label === "rising").sort((a, b) => momentum[b.geoid].momentum - momentum[a.geoid].momentum).slice(0, 8);
+const labelCounts = ["rising", "steady", "fading"].map((l) => [l, towns.filter((t) => momentum[t.geoid]?.label === l).length] as const);
 const top = (key: "small" | "large") =>
   graded.filter((t) => bandKey(t) === key).sort((a, b) => scores[b.geoid].readiness - scores[a.geoid].readiness).slice(0, 8);
 const regions = [...new Set(towns.map((t) => t.region))].sort();
@@ -16,7 +19,8 @@ const regions = [...new Set(towns.map((t) => t.region))].sort();
   <p class="lede">
     {site.SITE_NAME} grades {meta.town_count} cities and villages in the Hudson Valley, Capital Region and Mohawk Valley on one
     question: are the ingredients for a revival present? Access, building stock, main street, price headroom, services and
-    civic capacity, each from public data, each figure with its source and date.
+    civic capacity, each from public data, each figure with its source and date. A second score, momentum, asks whether
+    anything is actually happening yet: home values, permits and population, each against a benchmark.
   </p>
   {usingSampleData && <p class="notice">This build uses the sample fixture: only {meta.town_count} towns are shown.</p>}
 
@@ -85,18 +89,40 @@ const regions = [...new Set(towns.map((t) => t.region))].sort();
     ))}
   </div>
 
+  <h2>Rising now</h2>
+  <p class="muted small">Towns whose momentum score is 60 or more: {labelCounts.map(([l, n]) => `${n} ${l}`).join(" · ")}. A town keeping pace with the typical New York place scores 50.</p>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Town</th><th>Momentum</th><th class="num">Score</th><th>Grade</th><th class="num">Readiness</th></tr></thead>
+      <tbody>
+        {rising.map((t) => (
+          <tr>
+            <td><a href={`/town/${t.slug}`}>{t.name}</a> <span class="muted small">{t.county}</span></td>
+            <td><Momentum label={momentum[t.geoid].label} /></td>
+            <td class="num">{score1(momentum[t.geoid].momentum)}</td>
+            <td><Grade grade={scores[t.geoid]?.grade ?? null} /></td>
+            <td class="num">{score1(scores[t.geoid]?.readiness)}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  </div>
+  <p class="small"><a href="/rankings/strongest-momentum">Full momentum ranking →</a></p>
+
   <h2>Rankings</h2>
   <ul>
     <li><a href="/rankings/highest-readiness">Highest readiness</a></li>
+    <li><a href="/rankings/strongest-momentum">Strongest momentum</a></li>
     <li><a href="/rankings/price-headroom">Best price headroom</a></li>
     <li><a href="/rankings/value-within-an-hour">Best value within an hour of a city</a></li>
   </ul>
 
   <h2>What this is not</h2>
   <p>
-    A readiness grade says the ingredients are there. It does not say a revival is happening; that is the momentum score,
-    which comes next. Every competitor sells the town. This site also says when one is stalling, which only works if every
-    number carries its source, so <a href="/methodology">the methodology</a> is written for a town official to argue with.
+    A readiness grade says the ingredients are there. The momentum label says whether anything is happening yet, from three
+    public series; it is not a forecast, and it does not yet see migration or vacancy. Every competitor sells the town. This
+    site also says when one is stalling, which only works if every number carries its source, so
+    <a href="/methodology">the methodology</a> is written for a town official to argue with.
   </p>
   <p class="muted small">Regions covered: {regions.join(", ")}. Missing figures are shown as missing, never as zero.</p>
 </Base>

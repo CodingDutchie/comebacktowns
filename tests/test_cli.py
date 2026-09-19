@@ -17,6 +17,13 @@ def test_scope_dry_run_writes_csv(
     assert len(rows) == 4 and rows[0]["slug"] == "catskill-ny"
 
 
+def test_momentum_command_shares_the_scoring_options():
+    args = cli.build_parser().parse_args(["momentum", "--dry-run", "--metrics-csv", "m.csv"])
+    assert args.func is cli.cmd_momentum and args.dry_run and args.metrics_csv == "m.csv"
+    assert not hasattr(args, "no_pilot")
+    assert cli.build_parser().parse_args(["score", "--no-pilot"]).func is cli.cmd_score
+
+
 def test_ingest_rejects_unknown_source(monkeypatch, local_store):
     monkeypatch.setattr(cli, "raw_store", lambda: local_store)
     assert cli.main(["ingest", "nonsense"]) == 2

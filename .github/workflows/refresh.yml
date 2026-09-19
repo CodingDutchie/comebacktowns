@@ -66,14 +66,20 @@ jobs:
       - name: Score (dry run, QA rule 4)
         id: score_dry
         run: uv run python -m pipeline.cli score --dry-run --metrics-csv metrics.csv ${{ inputs.skip_pilot && '--no-pilot' || '' }}
+      - name: Momentum (dry run)
+        id: momentum_dry
+        run: uv run python -m pipeline.cli momentum --dry-run --metrics-csv metrics.csv
       - name: Load metrics
         id: load_metrics
         run: uv run python -m pipeline.cli transform
       - name: Load scores
         id: load_scores
         run: uv run python -m pipeline.cli score ${{ inputs.skip_pilot && '--no-pilot' || '' }}
+      - name: Load momentum
+        id: load_momentum
+        run: uv run python -m pipeline.cli momentum
       - name: Note which step failed
         id: mark
         if: failure()
         run: |
-          echo "failed_step=${{ steps.load_scores.outcome == 'failure' && 'load_scores' || steps.load_metrics.outcome == 'failure' && 'load_metrics' || steps.score_dry.outcome == 'failure' && 'score_dry' || steps.transform_dry.outcome == 'failure' && 'transform_dry' || steps.ingest.outcome == 'failure' && 'ingest' || 'setup' }}" >> "$GITHUB_OUTPUT"
+          echo "failed_step=${{ steps.load_momentum.outcome == 'failure' && 'load_momentum' || steps.load_scores.outcome == 'failure' && 'load_scores' || steps.load_metrics.outcome == 'failure' && 'load_metrics' || steps.momentum_dry.outcome == 'failure' && 'momentum_dry' || steps.score_dry.outcome == 'failure' && 'score_dry' || steps.transform_dry.outcome == 'failure' && 'transform_dry' || steps.ingest.outcome == 'failure' && 'ingest' || 'setup' }}" >> "$GITHUB_OUTPUT"

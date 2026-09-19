@@ -33,16 +33,18 @@ class Linear:
     one_at: float
     unit: str = ""
     better: str = ""
+    scale: float = 1.0  # display only: 100 shows a share as percentage points
 
     def __call__(self, value: float, **context: float) -> float:
         return clamp((value - self.zero_at) / (self.one_at - self.zero_at))
 
     def describe(self) -> str:
         direction = "lower is better" if self.zero_at > self.one_at else "higher is better"
+        one, zero = self.one_at * self.scale, self.zero_at * self.scale
         return (
-            f"{self.name}: {direction}; scores 1 at {self.one_at:g}{self.unit} or "
+            f"{self.name}: {direction}; scores 1 at {one:g}{self.unit} or "
             f"{'less' if self.zero_at > self.one_at else 'more'}, falling in a straight line to 0 "
-            f"at {self.zero_at:g}{self.unit}."
+            f"at {zero:g}{self.unit}."
         )
 
 
@@ -128,8 +130,29 @@ class Ratio:
         return f"{self.name} divided by {self.denominator}. " + self.inner.describe()
 
 
+@dataclass(frozen=True)
+class Relative:
+    """Applies an inner curve to ``value - context[benchmark]``: how far the town's own
+    change sits above or below a benchmark change. Keeping pace scores the inner curve's
+    midpoint."""
+
+    name: str
+    benchmark: str
+    inner: Linear
+
+    def __call__(self, value: float, **context: float) -> float:
+        bench = context.get(self.benchmark)
+        if bench is None:
+            raise ValueError(f"{self.name} needs {self.benchmark}")
+        return self.inner(value - bench)
+
+    def describe(self) -> str:
+        return f"{self.name} minus {self.benchmark}. " + self.inner.describe()
+
+
 # One curve per input named in config/scoring.v1.yml. Inputs that only supply context to
-# another input's curve (metro_median_home_value) are listed in CONTEXT_ONLY.
+# another input's curve (metro_median_home_value, the *_ny_median benchmarks) are listed in
+# CONTEXT_ONLY.
 CURVES_V1: dict[str, Curve] = {
     "drive_min_nyc": Linear("drive_min_nyc", zero_at=240, one_at=60, unit=" min"),
     "drive_min_regional_hub": Linear("drive_min_regional_hub", zero_at=90, one_at=15, unit=" min"),
@@ -164,5 +187,40 @@ CURVES_V1: dict[str, Curve] = {
     "dri_award_amount": Linear("dri_award_amount", zero_at=0, one_at=10_000_000, unit=" USD"),
     "dri_award_year": Recency("dri_award_year", full_years=3, fade_years=10, floor=0.3),
 }
-CONTEXT_ONLY = {"metro_median_home_value"}
+# One curve per input named in config/momentum.v1.yml. Every input is a change over time
+# judged against a benchmark, so keeping pace scores 0.5 and 50 is the steady centre.
+MOMENTUM_CURVES_V1: dict[str, Curve] = {
+    "zhvi_change_1y": Relative(
+        "zhvi_change_1y",
+        "zhvi_change_1y_ny_median",
+        Linear(
+            "one-year home value change against the typical New York place",
+            zero_at=-0.05,
+            one_at=0.05,
+            unit=" percentage points",
+            scale=100,
+        ),
+    ),
+    "permit_rate_change": Linear(
+        "permit_rate_change", zero_at=-2, one_at=2, unit=" units per 1,000 residents a year"
+    ),
+    "population_change": Relative(
+        "population_change",
+        "population_change_ny_median",
+        Linear(
+            "population change since 2020 against the typical New York place",
+            zero_at=-0.03,
+            one_at=0.03,
+            unit=" percentage points",
+            scale=100,
+        ),
+    ),
+}
+CONTEXT_ONLY = {
+    "metro_median_home_value",
+    "zhvi_change_1y_ny_median",
+    "zori_change_1y_ny_median",
+    "population_change_ny_median",
+}
 CURVES: dict[str, dict[str, Curve]] = {"v1": CURVES_V1}
+MOMENTUM_CURVES: dict[str, dict[str, Curve]] = {"v1": MOMENTUM_CURVES_V1}

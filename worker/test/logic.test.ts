@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildIndex, compare, filter, parseFilter, publicTown, search, type MetricRow, type ScoreRow, type TownRow } from "../src/logic";
+import { buildIndex, compare, filter, parseFilter, publicTown, search, type MetricRow, type MomentumRow, type ScoreRow, type TownRow } from "../src/logic";
 
 const towns: TownRow[] = [
   { geoid: "3613002", name: "Catskill", legal_type: "village", county: "Greene", region: "Capital Region", lat: 42.2, lon: -73.9, pop_latest: 3723, slug: "catskill-ny" },
@@ -24,7 +24,13 @@ const metrics: MetricRow[] = [
   { geoid: "3636277", metric: "median_home_value", period: "2020-2024", value: 300000, suppressed: 1 },
   { geoid: "3636277", metric: "drive_min_nyc", period: "2026-09", value: 150, suppressed: 0 },
 ];
-const index = buildIndex(towns, scores, metrics, () => "now");
+const momentum: MomentumRow[] = [
+  { geoid: "3613002", momentum: 32.9, label: "fading", coverage: 0.67, computed_at: "2026-09-19T15:00:00" },
+  { geoid: "3613002", momentum: 70, label: "rising", coverage: 1, computed_at: "2026-09-19T10:00:00" }, // older run, ignored
+  { geoid: "3639727", momentum: 61.2, label: "rising", coverage: 1, computed_at: "2026-09-19T15:00:00" },
+  { geoid: "3636277", momentum: 48, label: "steady", coverage: 0.67, computed_at: "2026-09-19T15:00:00" },
+];
+const index = buildIndex(towns, scores, metrics, momentum, () => "now");
 
 describe("buildIndex", () => {
   it("keeps the latest scores run and the latest period per metric", () => {
@@ -35,6 +41,14 @@ describe("buildIndex", () => {
     expect(index.computed_at).toBe("2026-09-18T19:00:00");
     expect(index.towns.find((t) => t.slug === "little-falls-ny")!.readiness).toBeNull();
   });
+  it("keeps the latest momentum run", () => {
+    const c = index.towns.find((t) => t.slug === "catskill-ny")!;
+    expect(c.momentum).toBe(32.9);
+    expect(c.momentum_label).toBe("fading");
+    expect(index.momentum_computed_at).toBe("2026-09-19T15:00:00");
+    expect(index.towns.find((t) => t.slug === "little-falls-ny")!.momentum_label).toBeNull();
+    expect(buildIndex(towns, scores, metrics).momentum_computed_at).toBeNull();
+  });
 });
 
 describe("search", () => {
@@ -44,6 +58,7 @@ describe("search", () => {
     expect(search(index, "greene").map((h) => h.slug)).toEqual(["catskill-ny"]);
     expect(search(index, "  ")).toEqual([]);
     expect(search(index, "CATS")[0].grade).toBe("A");
+    expect(search(index, "CATS")[0].momentum_label).toBe("fading");
   });
   it("respects the limit", () => {
     expect(search(index, "n", 2)).toHaveLength(2);
@@ -60,6 +75,13 @@ describe("filter", () => {
     expect(filter(index, { max_drive_nyc: 120 }).towns.map((t) => t.slug)).toEqual(["kingston-ny"]);
     expect(filter(index, { has_award: true }).towns.map((t) => t.slug)).toEqual(["catskill-ny"]);
     expect(filter(index, { min_readiness: 60 }).total).toBe(3);
+  });
+  it("filters and sorts on momentum", () => {
+    expect(filter(index, { momentum: "rising" }).towns.map((t) => t.slug)).toEqual(["kingston-ny"]);
+    expect(filter(index, { momentum: "Rising,steady" }).towns.map((t) => t.slug)).toEqual(["kingston-ny", "hudson-ny"]);
+    expect(filter(index, { min_momentum: 40 }).towns.map((t) => t.slug)).toEqual(["kingston-ny", "hudson-ny"]);
+    expect(filter(index, { sort: "momentum" }).towns.map((t) => t.slug)).toEqual(["kingston-ny", "hudson-ny", "catskill-ny", "little-falls-ny"]);
+    expect(parseFilter(new URLSearchParams("momentum=rising&min_momentum=50&sort=momentum"))).toEqual({ ok: true, value: { momentum: "rising", min_momentum: 50, sort: "momentum" } });
   });
   it("sorts and pages", () => {
     expect(filter(index, { sort: "drive_nyc" }).towns.map((t) => t.slug)).toEqual(["kingston-ny", "hudson-ny", "catskill-ny", "little-falls-ny"]);

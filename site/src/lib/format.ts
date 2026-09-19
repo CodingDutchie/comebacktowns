@@ -12,6 +12,10 @@ export function formatValue(name: string, value: number | null | undefined): str
       return money.format(value);
     case "percent":
       return `${oneDecimal.format(value * 100)}%`;
+    case "change":
+      return `${value > 0 ? "+" : ""}${oneDecimal.format(value * 100)}%`;
+    case "per_1k_change":
+      return `${value > 0 ? "+" : ""}${oneDecimal.format(value)} per 1,000`;
     case "minutes": {
       const m = Math.round(value);
       return m >= 60 ? `${Math.floor(m / 60)} h ${m % 60} min` : `${m} min`;

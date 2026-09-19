@@ -71,6 +71,10 @@ def scoring_config(version: str = "v1") -> dict[str, Any]:
     return load_yaml(CONFIG_DIR / f"scoring.{version}.yml")
 
 
+def momentum_config(version: str = "v1") -> dict[str, Any]:
+    return load_yaml(CONFIG_DIR / f"momentum.{version}.yml")
+
+
 @cache
 def wrangler_config() -> dict[str, Any]:
     with (ROOT / "wrangler.toml").open("rb") as fh:
