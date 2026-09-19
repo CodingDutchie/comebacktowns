@@ -1,0 +1,21 @@
+slug,name,county,readiness,nycMiles,railInTown,railMiles,historicDistrict,dri,driYear,pop2020,popLatest,homeValue,rent,income,broadband,poverty,vacancy,pre1940,access,head,char,civic,stress
+catskill-ny,Catskill,Greene,84,101.0,,4.3,True,10000000,2025,3745,3779,242500,,79423,,11.2,,,77,69,100,96,88
+port-jervis-ny,Port Jervis,Orange,73,55.6,Metro-North Port Jervis,0,False,10000000,2023,8775,8518,236700,1260,47917,82.7,22.2,8.7,,98,71,30,88,47
+canajoharie-ny,Canajoharie,Montgomery,73,151.2,,20,True,4500000,2025,2080,1839,125800,,80139,,12.6,15.8,,41,86,100,81,83
+gloversville-ny,Gloversville,Fulton,70,159.5,,11,True,10000000,2021,15131,14782,106400,903,51556,87.3,17.6,11.8,56.1,48,75,100,79,64
+cohoes-ny,Cohoes,Albany,70,140.4,,10,True,10000000,2023,18147,18518,223400,1251,61145,85.8,25.9,13.8,40.3,56,76,100,88,34
+hoosick-falls-ny,Hoosick Falls,Rensselaer,70,151.6,,26,True,4500000,2023,3216,3171,154600,867,48214,81.0,16.1,14.7,57.6,34,98,100,72,70
+norwich-ny,Norwich,Chenango,70,146.0,,42,True,10000000,2021,7051,6538,121100,867,53333,88.4,14.2,,,36,83,100,79,77
+kingston-ny,Kingston,Ulster,69,80.9,,11,True,10000000,2017,24069,23942,315500,1469,68186,92.6,17.6,,,76,45,100,62,64
+ellenville-ny,Ellenville,Ulster,69,69.6,,18,True,4500000,2026,4167,4211,218200,,42969,,35.0,13.3,,72,77,100,85,0
+newburgh-ny,Newburgh,Orange,67,51.3,,1.5,True,,,28856,28059,247900,1454,56960,87.2,24.3,11.0,,98,67,100,15,40
+oneonta-ny,Oneonta,Otsego,67,129.8,,46,True,10000000,2016,13079,15665,184100,1021,61111,90.0,16.6,17.4,55.6,42,89,100,58,68
+amsterdam-ny,Amsterdam,Montgomery,64,151.8,Amtrak Amsterdam,0,False,10000000,2018,18219,18093,137900,1006,56178,87.6,20.2,18.0,,64,93,30,67,55
+little-falls-ny,Little Falls,Herkimer,63,164.2,,19,True,10000000,2021,4605,4481,105700,804,53544,92.8,24.3,13.8,71.3,37,75,100,79,40
+beacon-ny,Beacon,Dutchess,62,51.6,Metro-North Beacon,0,True,,,13769,14931,471600,1658,107859,93.9,9.0,,,99,0,100,15,96
+hudson-ny,Hudson,Columbia,60,103.6,Amtrak Hudson,0,True,10000000,2017,5894,5721,389900,1343,54139,88.3,28.2,,,81,20,100,62,25
+geneva-ny,Geneva,Ontario,60,213.2,,37,True,10000000,2016,12812,12552,165500,972,79435,91.5,16.0,,,13,95,100,58,70
+saugerties-ny,Saugerties,Ulster,53,91.1,,10.7,True,,,3899,3884,374100,,57778,,21.0,,,73,25,100,15,52
+olean-ny,Olean,Cattaraugus,45,247.8,,59,True,10000000,2017,13937,13508,86100,794,51261,87.0,26.7,,,1,63,100,62,31
+hornell-ny,Hornell,Steuben,42,218.7,,59,False,10000000,2019,8263,8024,94500,784,47385,85.2,23.3,,,11,68,30,71,43
+dunkirk-ny,Dunkirk,Chautauqua,42,300.7,,43,False,10000000,2023,12743,12326,94700,866,53299,92.1,24.3,,,0,68,30,88,40

@@ -395,12 +395,21 @@ def test_community_names():
     ]
     assert community_names("The Village of Sleepy Hollow") == ["Sleepy Hollow"]
     assert community_names("Catskill") == ["Catskill"]
+    assert "Gloversville" in community_names("Downtown Improvement in Gloversville")
+    assert "Little Falls" in community_names("Little Falls\u2019 Downtown Waterfront District")
+    assert "Troy" in community_names("Troy\u2019s Riverwalk DRI District")
+    assert "Kingston" not in community_names("Kingston Falls' Waterfront District")
 
 
 def test_dri_metrics_match_region_and_latest_award(ctx):
     s = ctx.store
     r2 = "<h2>Capital Region</h2><p><strong>Catskill</strong></p><p>text</p>"
-    r8 = "<h2>Capital Region</h2><p><strong>Village of Catskill</strong></p><p>text</p><h2>Mid-Hudson</h2><p><strong>Kingston</strong></p>"
+    r8 = (
+        "<h2>Capital Region</h2><p><strong>Village of Catskill</strong></p><p>text</p>"
+        "<h2>Mid-Hudson</h2><p><strong>Kingston</strong></p>"
+        "<p><strong>Downtown Improvement in Kingston</strong></p>"  # a label around a name
+        "<p><strong>Kingston Falls' Waterfront District</strong></p>"  # must not credit Kingston
+    )
     n1 = "<h2>Mid-Hudson</h2><p><strong>Catskill</strong></p>"  # wrong region: must not match
     s.put_bytes(f"raw/dri/{AS}/dri_downtown-revitalization-initiative-round-two.html", r2.encode())
     s.put_bytes(
@@ -428,10 +437,9 @@ def test_dri_metrics_match_region_and_latest_award(ctx):
         and rows[("3613002", "dri_award_amount")].value == 10_000_000
     )
     assert rows[("3613002", "dri_award_year")].r2_key.endswith("round-eight.html")
-    assert (
-        rows[("3639727", "dri_award_count")].value == 1
-        and rows[("3639727", "dri_award_year")].value == 2024
-    )
+    # exact match plus the contained-label match, but never the "Kingston Falls" label
+    assert rows[("3639727", "dri_award_count")].value == 2
+    assert rows[("3639727", "dri_award_year")].value == 2024
     assert (
         rows[("3699004", "dri_award_amount")].value == 0
         and ("3699004", "dri_award_year") not in rows
