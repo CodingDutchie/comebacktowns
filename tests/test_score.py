@@ -195,10 +195,15 @@ def test_pilot_rule(tmp_path):
         load_pilot(tmp_path / "missing.csv")
     fixture = tmp_path / "pilot_v0.csv"
     fixture.write_text(
-        f"slug,name,readiness\ncatskill-ny,Catskill,{score.readiness + 2:.1f}\nolean-ny,Olean,45\n"
+        "slug,name,readiness,pilot_score\n"
+        f"catskill-ny,Catskill,{score.readiness + 2:.1f},84\n"
+        "geneva-ny,Geneva,60,60\n"
+        "olean-ny,Olean,,45\n"
     )
-    lines = check_pilot([score], {t.geoid: t.slug}, load_pilot(fixture))
-    assert lines and "drift" in lines[0] and "skipped: olean-ny" in lines[-1]
+    pilot = load_pilot(fixture)
+    assert "olean-ny" not in pilot  # blank readiness: reference only
+    lines = check_pilot([score], {t.geoid: t.slug}, pilot)
+    assert lines and "drift" in lines[0] and lines[-1].endswith("skipped: geneva-ny")
     fixture.write_text(f"geoid,readiness\n3613002,{score.readiness + 4:.1f}\n")
     with pytest.raises(QAError, match="exceeds"):
         check_pilot([score], {t.geoid: t.slug}, load_pilot(fixture))

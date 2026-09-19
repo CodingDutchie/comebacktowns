@@ -68,8 +68,13 @@ applied with wrangler), `site/` (Astro 5, static), `worker/` (Phase 5 API), `tes
   population. Both are keyless bulk files, so Phase 0 needs no Census API key.
 - **R2 credentials are derived from `CLOUDFLARE_API_TOKEN`** (access key = token id, secret
   = SHA-256 of the token), so no extra secret is needed.
-- **`seed/pilot_v0.csv` is not in the repo.** Until the owner adds it, QA rule 4 (pilot
-  regression) cannot run and Phase 3 cannot close.
+- **`seed/pilot_v0.csv` is the QA rule 4 baseline, re-baselined to the v1 engine.** The
+  owner's 20 hand-scored pilot towns (five outside the v1 scope) arrived after v1 was
+  published; only 5 of the 15 in-scope towns landed within ±3 of the engine (mean drift
+  −6.6, rank correlation ≈0.4), a structural difference (the pilot's five-factor rubric had
+  a stress factor v1 lacks and no main-street factor). Per §11.3 the owner chose to set
+  `readiness` to the v1 output of 2026-09-19 and keep the hand score as `pilot_score`, so
+  the rule guards the published methodology against regressions rather than the hand rubric.
 - **Feeds added beyond the plan's list** to cover every scoring input: `tiger` (place
   polygons), `hospitals` (NYS DOH facility list), `osrm` (drive minutes to NYC, the nearest
   regional hub and the nearest hospitals, one cached `table` call per town at the demo
@@ -113,8 +118,9 @@ applied with wrangler), `site/` (Astro 5, static), `worker/` (Phase 5 API), `tes
   applicable to award winners). Grades are percentile curves within the two population
   bands; coverage under 60% means no grade. Every `score` run appends rows keyed on
   `computed_at`, so history is kept.
-- **QA rule 4 cannot run** until `seed/pilot_v0.csv` exists (columns `geoid` or `slug`, and
-  `readiness`); `score --no-pilot` states that explicitly when writing without it.
+- **QA rule 4** compares `readiness` in `seed/pilot_v0.csv` (columns `geoid` or `slug` and
+  `readiness`; a blank `readiness` marks a reference-only row) with the engine at ±3 points.
+  `score --no-pilot` only covers a missing fixture; drift always stops the run.
 - **Site (Phase 4).** Astro reads `site/data/*.json` written by `pipeline.cli export`
   (gitignored, rebuilt on every deploy); when absent it falls back to the committed
   `site/sample-data/` fixture (six towns) so CI and fresh clones still build. Labels, units
@@ -122,8 +128,8 @@ applied with wrangler), `site/` (Astro 5, static), `worker/` (Phase 5 API), `tes
   content client-side (it must read `?towns=` from the address; the data comes from the
   statically built `/data/compare.json`); every other page is static HTML with no content JS.
   The dataset download is licensed CC BY 4.0 (owner to confirm); sources keep their own terms.
-- **Grades are published from a `score --no-pilot` run** until `seed/pilot_v0.csv` exists;
-  the methodology version and computed-at stamp are on every town page.
+- **Grades were first published from a `score --no-pilot` run**, before the pilot fixture
+  existed; the methodology version and computed-at stamp are on every town page.
 - **API (Phase 5).** `worker/src/index.ts` runs first for every request (`run_worker_first`):
   redirects www to the apex, answers `/api/search`, `/api/filter`, `/api/compare` and
   `/api/health`, and hands everything else to the static assets. The town index (towns +
@@ -142,8 +148,8 @@ applied with wrangler), `site/` (Astro 5, static), `worker/` (Phase 5 API), `tes
   builds, deploys, purges the API's KV index and smoke-checks the live domain. Any failure
   runs `report-failure.yml`, which opens or updates an issue labelled `refresh-failure`
   naming the source or step, and nothing is published. Scheduled runs never skip QA rule 4:
-  until `seed/pilot_v0.csv` exists they stop at the scoring dry run with an issue; a manual
-  dispatch can pass `skip_pilot`.
+  drift beyond ±3 stops them at the scoring dry run with an issue; `skip_pilot` on a manual
+  dispatch only covers a missing fixture.
 - **Snapshot resolution.** Each transform reads the latest snapshot of its own source on or
   before the run date and stamps rows with that date, so a monthly run re-pulls only the
   monthly feeds and every other figure keeps citing its most recent pull.
