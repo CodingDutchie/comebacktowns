@@ -211,19 +211,40 @@ def community_names(text: str) -> list[str]:
 
 
 def match_awards(awards: list[Award], ctx: Context) -> dict[str, list[Award]]:
-    """geoid -> awards whose community name and REDC region match a scope town."""
+    """geoid -> awards whose community name and REDC region match a scope town.
+
+    Exact matches on the normalised community parts come first. Labels the programs wrote
+    around a place name ("Downtown Improvement in Gloversville", "Little Falls' Downtown
+    Waterfront District") fall back to the longest town name contained in the label as
+    whole words, within the same region, so "Hudson Falls" never credits Hudson.
+    """
     by_region: dict[tuple[str, str], str] = {
         (slugify(t.name), t.region): t.geoid for t in ctx.towns
     }
+    towns_in_region: dict[str, list[tuple[str, str]]] = {}
+    for t in ctx.towns:
+        towns_in_region.setdefault(t.region, []).append((slugify(t.name), t.geoid))
     matched: dict[str, list[Award]] = {}
     for award in awards:
         region = DRI_REGION_TO_SCOPE.get(award.region)
         if region is None:
             continue
+        hits: list[str] = []
         for name in community_names(award.community):
             geoid = by_region.get((slugify(name), region))
             if geoid:
-                matched.setdefault(geoid, []).append(award)
+                hits.append(geoid)
+        if not hits:
+            haystack = f"-{slugify(award.community)}-"
+            contained = [
+                (len(slug), geoid)
+                for slug, geoid in towns_in_region.get(region, [])
+                if f"-{slug}-" in haystack
+            ]
+            if contained:
+                hits.append(max(contained)[1])
+        for geoid in dict.fromkeys(hits):
+            matched.setdefault(geoid, []).append(award)
     return matched
 
 

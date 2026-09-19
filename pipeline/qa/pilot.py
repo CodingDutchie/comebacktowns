@@ -43,10 +43,11 @@ def check_pilot(scores: list[Score], slugs: dict[str, str], pilot: dict[str, flo
     by_slug = {slugs[g]: s for g, s in by_geoid.items() if g in slugs}
     lines: list[str] = []
     problems: list[str] = []
+    out_of_scope: list[str] = []
     for key, expected in pilot.items():
         score = by_geoid.get(key) or by_slug.get(key)
         if score is None:
-            problems.append(f"{key}: not in scope")
+            out_of_scope.append(key)
             continue
         drift = score.readiness - expected
         lines.append(
@@ -54,6 +55,10 @@ def check_pilot(scores: list[Score], slugs: dict[str, str], pilot: dict[str, flo
         )
         if abs(drift) > TOLERANCE:
             problems.append(f"{key}: drift {drift:+.1f} exceeds ±{TOLERANCE:g}")
+    if out_of_scope:
+        lines.append(f"not in the v1 scope, skipped: {', '.join(out_of_scope)}")
+    if not lines or all(line.startswith("not in") for line in lines):
+        problems.append("no pilot town is in scope")
     if problems:
         raise QAError(problems)
     return lines
