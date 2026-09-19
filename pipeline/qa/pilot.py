@@ -18,7 +18,7 @@ class PilotFixtureMissingError(QAError):
 
 
 def load_pilot(path: Path = PILOT_PATH) -> dict[str, float]:
-    """geoid or slug -> hand-scored readiness."""
+    """geoid or slug -> baseline readiness. Rows with a blank readiness are reference only."""
     shown = str(path.relative_to(ROOT)) if path.is_relative_to(ROOT) else str(path)
     if not path.exists():
         raise PilotFixtureMissingError(
@@ -29,9 +29,10 @@ def load_pilot(path: Path = PILOT_PATH) -> dict[str, float]:
         reader = csv.DictReader(fh)
         for row in reader:
             key = (row.get("geoid") or row.get("slug") or "").strip()
-            if not key:
+            readiness = (row.get("readiness") or "").strip()
+            if not key or not readiness:
                 continue
-            out[key] = float(row["readiness"])
+            out[key] = float(readiness)
     if not out:
         raise PilotFixtureMissingError([f"{shown} has no rows"])
     return out
