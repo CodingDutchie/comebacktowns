@@ -11,7 +11,7 @@ from pathlib import Path
 from typing import Any
 
 from pipeline.ingest.base import normalise_as_of
-from pipeline.ingest.registry import FEEDS, fetch_all, fetch_one
+from pipeline.ingest.registry import DISCOVERERS, FEEDS, discover_new_years, fetch_all, fetch_one
 from pipeline.qa import QAError
 from pipeline.settings import scope_config
 from pipeline.storage import raw_store
@@ -38,6 +38,25 @@ def cmd_ingest(args: argparse.Namespace) -> int:
         print(f"{name}\t{len(source_keys)} file(s)")
         for key in source_keys[: args.show]:
             print(f"\t{key}")
+    return 0
+
+
+def cmd_discover(args: argparse.Namespace) -> int:
+    """Print one line per source that has a newly published year: ``source<TAB>year year``.
+
+    Nothing is fetched or written; the refresh workflows use the output to decide which
+    sources to pull. Sources with nothing new print nothing.
+    """
+    names = args.source or list(DISCOVERERS)
+    unknown = [n for n in names if n not in DISCOVERERS]
+    if unknown:
+        log.error("no year discovery for: %s; known: %s", unknown, ", ".join(DISCOVERERS))
+        return 2
+    for name, years in discover_new_years(names).items():
+        if years:
+            print(f"{name}\t{' '.join(years)}")
+        else:
+            log.info("%s: nothing beyond the configured years", name)
     return 0
 
 
@@ -259,6 +278,12 @@ def build_parser() -> argparse.ArgumentParser:
     ingest.add_argument("--as-of", help="ISO date for the snapshot key (default: today)")
     ingest.add_argument("--show", type=int, default=5, help="keys to print per source")
     ingest.set_defaults(func=cmd_ingest)
+
+    discover = sub.add_parser(
+        "discover", help="probe annual feeds for years newer than config/sources.yml"
+    )
+    discover.add_argument("source", nargs="*", help=f"any of: {', '.join(DISCOVERERS)}")
+    discover.set_defaults(func=cmd_discover)
 
     scope = sub.add_parser("scope", help="build the in-scope town list and write the towns table")
     scope.add_argument("--as-of", help="ISO date of the popest/gazetteer snapshot to use")

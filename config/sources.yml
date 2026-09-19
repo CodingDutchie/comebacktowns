@@ -53,7 +53,8 @@ permits:
   name: Building Permits Survey, place-level annual (Northeast region)
   publisher: U.S. Census Bureau
   url: https://www2.census.gov/econ/bps/Place/Northeast%20Region/ne{year}a.txt
-  years: [2021, 2022, 2023, 2024, 2025]
+  years: [2021, 2022, 2023, 2024, 2025] # the floor; later years are probed at each fetch
+  discover_ahead: 3 # how many years past the last one to look for
   cadence: annual
   licence: Public domain (U.S. federal government work)
   attribution: U.S. Census Bureau, Building Permits Survey
@@ -101,7 +102,8 @@ irs:
   name: SOI Tax Stats, county-to-county migration data
   publisher: Internal Revenue Service, Statistics of Income Division
   url: https://www.irs.gov/pub/irs-soi/county{flow}{years}.csv
-  years: ["2021", "2122", "2223"]
+  years: ["2021", "2122", "2223"] # the floor; later pairs are probed at each fetch
+  discover_ahead: 3 # how many filing-year pairs past the last one to look for
   flows: [inflow, outflow]
   cadence: annual
   licence: Public domain (U.S. federal government work)

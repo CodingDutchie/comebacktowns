@@ -12,6 +12,7 @@ uv run python -m pipeline.cli scope --dry-run        # build the town list, no w
 uv run python -m pipeline.cli scope                  # ...and write the towns table in D1
 uv run python -m pipeline.cli ingest --all           # every feed -> R2 raw/{source}/{as_of}/
 uv run python -m pipeline.cli ingest permits nrhp    # ...or named feeds; reruns are no-ops
+uv run python -m pipeline.cli discover               # permits/IRS years newer than config, HEAD only
 uv run python -m pipeline.cli transform --dry-run    # raw -> metrics rows, QA, coverage table
 uv run python -m pipeline.cli transform              # ...and upsert the metrics table in D1
 uv run python -m pipeline.cli score --explain catskill-ny   # full audit trail for one town
@@ -176,8 +177,15 @@ applied with wrangler), `site/` (Astro 5, static), `worker/` (Phase 5 API), `tes
   three of the four scored inputs. HUD's USPS vacancy data is restricted to governmental and
   non-profit registered users (§11.4); the owner decided on 2026-09-19 to leave vacancy out.
   If that ever changes it is `momentum.v3.yml`, never an edit to v2.
-  New IRS years are added to `years` in `config/sources.yml`, like permits. The Worker
-  index key is `index:v3`.
+  The Worker index key is `index:v3`.
+- **New permit and IRS years are discovered, not configured.** `years` in
+  `config/sources.yml` is the floor; every fetch of `permits` or `irs` probes the following
+  year (pair) with HEAD requests, up to `discover_ahead`, and pulls what exists (an IRS pair
+  only when both flows are there). A 404-class status means "not yet"; anything else raises,
+  so an outage is never read as an unreleased file (`pipeline.http.exists`,
+  `extend_years` in `pipeline/ingest/base.py`). `discover-years.yml` runs on the 3rd of
+  each month, calls `cli.py discover`, and when a year has appeared refreshes just that
+  source and republishes; otherwise it does nothing. The annual run picks them up too.
 - **Design ("Ledger").** Dark slate header and hero bands over a light ledger body, IBM Plex
   Sans for text and IBM Plex Mono for every figure, code and label (Google Fonts, preconnected,
   `display=swap`); colour tokens and all component CSS live in `site/src/layouts/Base.astro`.
