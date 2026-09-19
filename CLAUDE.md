@@ -61,8 +61,9 @@ applied with wrangler), `site/` (Astro 5, static), `worker/` (Phase 5 API), `tes
   GEOIDs and would add ~284 rows, far above the 120–180 gate. Village vs town-of is handled
   by scoring the village and labelling its `legal_type`. 148 places are in scope.
 - **Regions follow NY's REDC boundaries** so no county is in two regions: Columbia and
-  Greene (Catskill, Hudson) fall in the Capital Region, not the Hudson Valley. Moving them is
-  a one-line change in `config/scope.yml` if the owner prefers the colloquial grouping.
+  Greene (Catskill, Hudson) fall in the Capital Region, not the Hudson Valley. The owner
+  confirmed the REDC grouping on 2026-09-19; moving a county is a one-line change in
+  `config/scope.yml`.
 - **Workers static assets instead of Cloudflare Pages.** wrangler 4 no longer creates Pages
   projects and recommends Workers; the site deploys with `wrangler deploy` from `site/dist`
   and the Phase 5 API will share the Worker (`run_worker_first` on `/api/*`).
@@ -130,7 +131,8 @@ applied with wrangler), `site/` (Astro 5, static), `worker/` (Phase 5 API), `tes
   and descriptions for every metric live in `config/metrics.yml`. Only `/compare` renders
   content client-side (it must read `?towns=` from the address; the data comes from the
   statically built `/data/compare.json`); every other page is static HTML with no content JS.
-  The dataset download is licensed CC BY 4.0 (owner to confirm); sources keep their own terms.
+  The dataset download is licensed CC BY 4.0 (owner confirmed 2026-09-19); sources keep
+  their own terms.
 - **Grades were first published from a `score --no-pilot` run**, before the pilot fixture
   existed; the methodology version and computed-at stamp are on every town page.
 - **API (Phase 5).** `worker/src/index.ts` runs first for every request (`run_worker_first`):
@@ -172,7 +174,8 @@ applied with wrangler), `site/` (Astro 5, static), `worker/` (Phase 5 API), `tes
   median New York county. County level is the finest the IRS publishes, so every town in a
   county carries the same figure, named `county_*` and explained on the page. A label needs
   three of the four scored inputs. HUD's USPS vacancy data is restricted to governmental and
-  non-profit registered users (§11.4), so it is not used; it would be `momentum.v3.yml`.
+  non-profit registered users (§11.4); the owner decided on 2026-09-19 to leave vacancy out.
+  If that ever changes it is `momentum.v3.yml`, never an edit to v2.
   New IRS years are added to `years` in `config/sources.yml`, like permits. The Worker
   index key is `index:v3`.
 - **Snapshot resolution.** Each transform reads the latest snapshot of its own source on or
