@@ -18,6 +18,7 @@ from pipeline.load.d1 import D1Client
 from pipeline.score.curves import CONTEXT_ONLY, CURVES, MOMENTUM_CURVES, Curve
 from pipeline.settings import (
     CONFIG_DIR,
+    MOMENTUM_VERSION,
     ROOT,
     load_yaml,
     momentum_config,
@@ -106,7 +107,7 @@ def factor_block(
     return factors
 
 
-def methodology(version: str, momentum_version: str = "v1") -> dict[str, Any]:
+def methodology(version: str, momentum_version: str = MOMENTUM_VERSION) -> dict[str, Any]:
     config = scoring_config(version)
     qa = load_yaml(CONFIG_DIR / "qa.yml")
     mconfig = momentum_config(momentum_version)
@@ -225,7 +226,7 @@ def export_site_data(
     d1: D1Client,
     *,
     version: str = "v1",
-    momentum_version: str = "v1",
+    momentum_version: str = MOMENTUM_VERSION,
     out_dir: Path = SITE_DATA,
 ) -> dict[str, int]:
     out_dir.mkdir(parents=True, exist_ok=True)

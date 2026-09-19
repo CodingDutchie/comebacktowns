@@ -21,6 +21,11 @@ def test_momentum_command_shares_the_scoring_options():
     args = cli.build_parser().parse_args(["momentum", "--dry-run", "--metrics-csv", "m.csv"])
     assert args.func is cli.cmd_momentum and args.dry_run and args.metrics_csv == "m.csv"
     assert not hasattr(args, "no_pilot")
+    from pipeline.settings import MOMENTUM_VERSION
+
+    assert args.config_version == MOMENTUM_VERSION == "v2"
+    assert cli.build_parser().parse_args(["score"]).config_version == "v1"
+    assert cli.build_parser().parse_args(["export"]).momentum_version == "v2"
     assert cli.build_parser().parse_args(["score", "--no-pilot"]).func is cli.cmd_score
 
 

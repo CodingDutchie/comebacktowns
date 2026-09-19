@@ -40,12 +40,20 @@ def test_methodology_carries_both_configs():
     m = methodology("v1")
     assert [f["name"] for f in m["factors"]][:2] == ["access", "building_stock"]
     mo = m["momentum"]
+    assert mo["version"] == "v2" and mo["min_coverage"] == 0.75
     assert mo["kind"] == "momentum" and mo["grading"]["method"] == "threshold"
     assert mo["grading"]["bands"] == {"rising": 60, "steady": 40, "fading": 0}
     inputs = {i["name"]: i for f in mo["factors"] for i in f["inputs"]}
     assert inputs["zhvi_change_1y_ny_median"]["context_only"] is True
     assert inputs["zhvi_change_1y_ny_median"]["curve"] is None
     assert "percentage points" in inputs["zhvi_change_1y"]["curve"]
+    assert inputs["county_net_migration_rate_ny_median"]["context_only"] is True
+    assert "per 1,000 filers" in inputs["county_net_migration_rate"]["curve"]
+    assert [f["name"] for f in methodology("v1", "v1")["momentum"]["factors"]] == [
+        "prices",
+        "building",
+        "people",
+    ]
     assert "zhvi_change_1y" in m["metrics"] and m["metrics"]["permit_rate_change"]["format"]
 
 

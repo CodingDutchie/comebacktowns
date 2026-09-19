@@ -97,6 +97,16 @@ zillow:
   licence: Free to use with attribution (Zillow Research data terms)
   attribution: Zillow Research, ZHVI and ZORI
   used_for: Current home value and rent where Zillow covers the place, their one-year change and the statewide benchmark for momentum; gaps stay gaps.
+irs:
+  name: SOI Tax Stats, county-to-county migration data
+  publisher: Internal Revenue Service, Statistics of Income Division
+  url: https://www.irs.gov/pub/irs-soi/county{flow}{years}.csv
+  years: ["2021", "2122", "2223"]
+  flows: [inflow, outflow]
+  cadence: annual
+  licence: Public domain (U.S. federal government work)
+  attribution: IRS Statistics of Income, County-to-County Migration Data
+  used_for: Net migration of tax filers for each town's county (the IRS publishes county level only), per 1,000 of the county's filing population, and the statewide benchmark for momentum v2.
 hospitals:
   name: NYS Health Facility General Information
   publisher: New York State Department of Health (Health Data NY)

@@ -1,0 +1,25 @@
+# Momentum scoring, version 2. Never edit in place once published: a change in weights or
+# curves is a new file (momentum.v3.yml) and a note in the PR explaining what moved and why.
+#
+# What moved from v1: the `people` factor gains the IRS Statistics of Income county-to-county
+# migration series (BUILD_PLAN.md §12 named it for momentum). The IRS publishes migration at
+# county level only, so every town carries its county's net migration rate, labelled as such
+# on the page; it is judged against the median across New York's counties, like the other
+# benchmarks. Weights shift to make room (prices 0.40 -> 0.35, building 0.30 -> 0.25,
+# people 0.30 -> 0.40 with two inputs), and min_coverage rises to three of the four scored
+# inputs so that a label never rests on the two people inputs alone.
+#
+# What did not arrive: HUD's USPS address-vacancy data (the other §12 feed). HUD releases it
+# to governmental entities and non-profit organisations only, behind a registration this
+# project cannot complete, so vacancy is not in v2. Rent (zori_change_1y) stays shown, not
+# scored, for the reason given in momentum.v1.yml.
+version: v2
+kind: momentum
+factors:
+  prices:   {weight: 0.35, inputs: [zhvi_change_1y, zhvi_change_1y_ny_median]}
+  building: {weight: 0.25, inputs: [permit_rate_change]}
+  people:   {weight: 0.40, inputs: [population_change, population_change_ny_median, county_net_migration_rate, county_net_migration_rate_ny_median]}
+grading:
+  method: threshold                 # absolute cut-offs on the 0-100 momentum score
+  bands: {rising: 60, steady: 40, fading: 0}
+min_coverage: 0.75                  # at least three of the four scored inputs

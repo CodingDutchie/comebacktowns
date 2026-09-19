@@ -10,6 +10,7 @@ from pipeline.ingest import (
     dri,
     gazetteer,
     hospitals,
+    irs,
     nrhp,
     osm,
     osrm,
@@ -34,6 +35,7 @@ FEEDS: dict[str, Fetcher] = {
     hospitals.SOURCE_ID: hospitals.fetch,
     zillow.SOURCE_ID: zillow.fetch,
     dri.SOURCE_ID: dri.fetch,
+    irs.SOURCE_ID: irs.fetch,
     osrm.SOURCE_ID: osrm.fetch,
     osm.SOURCE_ID: osm.fetch,
 }

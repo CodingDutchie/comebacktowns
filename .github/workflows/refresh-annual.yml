@@ -25,7 +25,7 @@ jobs:
   refresh:
     uses: ./.github/workflows/refresh.yml
     with:
-      sources: "gazetteer popest tiger acs permits nrhp rail hospitals osrm dri"
+      sources: "gazetteer popest tiger acs permits nrhp rail hospitals osrm dri irs"
       skip_pilot: ${{ github.event_name == 'workflow_dispatch' && inputs.skip_pilot || false }}
       workflow_name: refresh-annual
     secrets: inherit

@@ -8,6 +8,8 @@ const mo = methodology.momentum;
 const moBands = Object.entries(mo.grading.bands).sort((a, b) => b[1] - a[1]);
 const risingAt = mo.grading.bands.rising;
 const steadyAt = mo.grading.bands.steady;
+const scoredInputs = mo.factors.flatMap((f) => f.inputs.filter((i) => !i.context_only)).length;
+const neededInputs = Math.ceil(mo.min_coverage * scoredInputs);
 const jsonLd = {
   "@context": "https://schema.org",
   "@type": "Dataset",
@@ -69,7 +71,7 @@ const jsonLd = {
   <ul>{bands.map(([g, p]) => <li><strong>{g}</strong>: {p === 0 ? "everything below the D cut-off" : `${p}th percentile and above`}</li>)}</ul>
 
   <h2 id="momentum">Momentum</h2>
-  <p>Momentum is a separate score, version {mo.version}, built by the same engine from three changes over time. It is not curved against other towns: every input is judged against a benchmark, so a town keeping pace scores 0.5 on each curve and 50 overall. Home values and population are compared with the median New York place in the same source file, so a statewide boom or drain does not read as momentum everywhere; permits are compared with the town's own rate two years earlier. Rent is shown on town pages but not scored, because Zillow publishes a rent index for few villages.</p>
+  <p>Momentum is a separate score, version {mo.version}, built by the same engine from changes over time. It is not curved against other towns: every input is judged against a benchmark, so a town keeping pace scores 0.5 on each curve and 50 overall. Home values and population are compared with the median New York place in the same source file, and tax-filer migration with the median New York county, so a statewide boom or drain does not read as momentum everywhere; permits are compared with the town's own rate two years earlier. Migration is a county figure, because the IRS publishes nothing finer: every town in a county carries the same one, and the page says so. Rent is shown on town pages but not scored, because Zillow publishes a rent index for few villages.</p>
   <div class="table-wrap">
     <table>
       <thead><tr><th>Factor</th><th class="num">Weight</th><th>What it asks</th><th>Inputs</th></tr></thead>
@@ -101,7 +103,7 @@ const jsonLd = {
   <h3 id="momentum-labels">Labels</h3>
   <p>The labels are absolute cut-offs on the 0–100 momentum score, not percentiles, because momentum measures direction rather than rank:</p>
   <ul>{moBands.map(([name, cutoff]) => <li><strong>{momentumLabels[name] ?? name}</strong>: {cutoff === 0 ? `below ${steadyAt}` : name === "rising" ? `${risingAt} and above` : `${cutoff} up to ${risingAt}`}</li>)}</ul>
-  <p id="momentum-coverage">Below {Math.round(mo.min_coverage * 100)}% coverage, which means fewer than two of the three scored inputs, the town's page shows its data and <strong>no label</strong>. Permit changes are suppressed when any of the five years involved was reported for fewer than twelve months, and Zillow does not cover every village; both count as missing, never as zero.</p>
+  <p id="momentum-coverage">Below {Math.round(mo.min_coverage * 100)}% coverage, which means fewer than {neededInputs} of the {scoredInputs} scored inputs, the town's page shows its data and <strong>no label</strong>. Permit changes are suppressed when any of the five years involved was reported for fewer than twelve months, and Zillow does not cover every village; both count as missing, never as zero.</p>
 
   <h2 id="coverage">Coverage and missing inputs</h2>
   <p id="missing">A missing input never scores zero. It is left out of its factor, and the town's <em>coverage</em> (usable inputs over applicable inputs) drops. Below {Math.round(methodology.min_coverage * 100)}% coverage the page is published with its data and <strong>no grade</strong>, because a grade on that little evidence would be a guess.</p>
@@ -125,6 +127,6 @@ const jsonLd = {
     <li>State downtown awards are read from ny.gov program pages; an amount is taken from the page only when it matches a size the programs actually pay, otherwise the program's standard award is recorded.</li>
     <li>Zillow does not cover every village. Where it does not, the figure is missing, not estimated.</li>
     <li>OpenStreetMap completeness varies by town, and the main-street factor inherits it: a town whose shops are not yet mapped scores low there until they are. Corrections belong in OpenStreetMap itself, and the next monthly refresh picks them up.</li>
-    <li>Momentum sees three series so far: home values, permits and population. Migration and vacancy feeds are planned and will arrive as a new momentum version, not a silent change to this one.</li>
+    <li>Momentum's migration input is a county figure, the finest the IRS publishes, so it cannot tell one town in a county from another. Address-vacancy data from the USPS is released by HUD to governmental and non-profit users only, so it is not used; any future addition is a new momentum version, not a silent change to this one.</li>
   </ul>
 </Base>

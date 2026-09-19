@@ -20,7 +20,7 @@ export interface Env {
   INDEX_TTL?: string;
 }
 
-const INDEX_KEY = "index:v2"; // bumped when the index shape changes; publish.yml purges this key
+const INDEX_KEY = "index:v3"; // bumped when the index shape changes; publish.yml purges this key
 const DEFAULT_TTL = 600;
 
 let memo: { index: TownIndex; expires: number } | null = null; // per-isolate memo, KV behind it
@@ -46,7 +46,7 @@ async function buildFromD1(env: Env): Promise<TownIndex> {
     env.DB.prepare("SELECT geoid, name, legal_type, county, region, lat, lon, pop_latest, slug FROM towns").all<TownRow>(),
     env.DB.prepare("SELECT geoid, readiness, grade, coverage, factor_scores, computed_at FROM scores WHERE config_version = 'v1'").all<ScoreRow>(),
     env.DB.prepare(`SELECT geoid, metric, period, value, suppressed FROM metrics WHERE metric IN (${placeholders})`).bind(...FACT_METRICS).all<MetricRow>(),
-    env.DB.prepare("SELECT geoid, momentum, label, coverage, computed_at FROM momentum WHERE config_version = 'v1'").all<MomentumRow>(),
+    env.DB.prepare("SELECT geoid, momentum, label, coverage, computed_at FROM momentum WHERE config_version = 'v2'").all<MomentumRow>(), // MOMENTUM_VERSION in pipeline/settings.py
   ]);
   return buildIndex(towns.results, scores.results, metrics.results, momentum.results);
 }

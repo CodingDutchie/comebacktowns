@@ -71,7 +71,12 @@ def scoring_config(version: str = "v1") -> dict[str, Any]:
     return load_yaml(CONFIG_DIR / f"scoring.{version}.yml")
 
 
-def momentum_config(version: str = "v1") -> dict[str, Any]:
+# The momentum config the CLI scores with and the export publishes. Readiness stays at v1
+# (its default everywhere); momentum moves by adding a file and pointing this at it.
+MOMENTUM_VERSION = "v2"
+
+
+def momentum_config(version: str = MOMENTUM_VERSION) -> dict[str, Any]:
     return load_yaml(CONFIG_DIR / f"momentum.{version}.yml")
 
 

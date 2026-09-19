@@ -82,7 +82,7 @@ const jsonLd = {
   {score ? methodology.factors.map((f) => <FactorCard factor={f.name} weight={f.weight} score={score} inputs={f.inputs} />) : <p class="notice">This town has not been scored yet.</p>}
 
   <h2>Momentum</h2>
-  <p class="muted small">Is anything actually happening? Three changes over time, each judged against a benchmark: the typical New York place for home values and population, the town's own earlier rate for permits. Keeping pace scores 50; 60 and above is rising, below 40 is fading. Not curved against other towns.</p>
+  <p class="muted small">Is anything actually happening? Changes over time, each judged against a benchmark: the typical New York place for home values and population, the typical New York county for tax-filer migration (a county figure, the finest the IRS publishes), the town's own earlier rate for permits. Keeping pace scores 50; 60 and above is rising, below 40 is fading. Not curved against other towns.</p>
   {mo ? methodology.momentum.factors.map((f) => <FactorCard factor={f.name} weight={f.weight} score={mo} inputs={f.inputs} />) : <p class="notice">This town has no momentum score yet.</p>}
 
   <h2>More figures</h2>

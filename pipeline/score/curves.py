@@ -216,11 +216,26 @@ MOMENTUM_CURVES_V1: dict[str, Curve] = {
         ),
     ),
 }
+# Momentum v2 adds the IRS county migration series; every v1 curve is unchanged.
+MOMENTUM_CURVES_V2: dict[str, Curve] = {
+    **MOMENTUM_CURVES_V1,
+    "county_net_migration_rate": Relative(
+        "county_net_migration_rate",
+        "county_net_migration_rate_ny_median",
+        Linear(
+            "county net migration of tax filers against the typical New York county",
+            zero_at=-5,
+            one_at=5,
+            unit=" per 1,000 filers",
+        ),
+    ),
+}
 CONTEXT_ONLY = {
     "metro_median_home_value",
     "zhvi_change_1y_ny_median",
     "zori_change_1y_ny_median",
     "population_change_ny_median",
+    "county_net_migration_rate_ny_median",
 }
 CURVES: dict[str, dict[str, Curve]] = {"v1": CURVES_V1}
-MOMENTUM_CURVES: dict[str, dict[str, Curve]] = {"v1": MOMENTUM_CURVES_V1}
+MOMENTUM_CURVES: dict[str, dict[str, Curve]] = {"v1": MOMENTUM_CURVES_V1, "v2": MOMENTUM_CURVES_V2}

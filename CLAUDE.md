@@ -163,8 +163,18 @@ applied with wrangler), `site/` (Astro 5, static), `worker/` (Phase 5 API), `tes
   scores 50; labels are absolute (rising ≥ 60, fading < 40), not curved, because momentum
   is direction, not rank; under 60% coverage (fewer than two of three inputs) there is no
   label. Rent change is produced and shown but not scored (Zillow covers 23 of 148 towns).
-  Momentum inputs are printed by `transform` but not gated by the 85% floor. IRS migration
-  and HUD vacancy would be `momentum.v2.yml`. The Worker index key moved to `index:v2`.
+  Momentum inputs are printed by `transform` but not gated by the 85% floor.
+- **Momentum v2 is the active version** (`MOMENTUM_VERSION` in `pipeline/settings.py`, the
+  `momentum` and `export` defaults, and the Worker's momentum query; readiness stays v1).
+  It adds the `irs` feed (SOI county-to-county migration, inflow and outflow CSVs per
+  filing-year pair, latin-1, `-1` = suppressed): `county_net_migration_rate` is net
+  individuals per 1,000 of the county's year-1 filing population, benchmarked against the
+  median New York county. County level is the finest the IRS publishes, so every town in a
+  county carries the same figure, named `county_*` and explained on the page. A label needs
+  three of the four scored inputs. HUD's USPS vacancy data is restricted to governmental and
+  non-profit registered users (§11.4), so it is not used; it would be `momentum.v3.yml`.
+  New IRS years are added to `years` in `config/sources.yml`, like permits. The Worker
+  index key is `index:v3`.
 - **Snapshot resolution.** Each transform reads the latest snapshot of its own source on or
   before the run date and stamps rows with that date, so a monthly run re-pulls only the
   monthly feeds and every other figure keeps citing its most recent pull.

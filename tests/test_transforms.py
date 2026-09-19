@@ -14,6 +14,7 @@ from pipeline.scope import build_towns
 from pipeline.transform import Context, MetricRow, suppress_if_wide
 from pipeline.transform.acs import acs_metrics, load_group, ratio
 from pipeline.transform.dri import community_names, dri_metrics
+from pipeline.transform.irs import irs_metrics, net_rates, parse_flows, year_pairs
 from pipeline.transform.nrhp import nrhp_metrics
 from pipeline.transform.osm import osm_metrics
 from pipeline.transform.osrm import crow_metrics, osrm_metrics
@@ -581,3 +582,47 @@ def test_rows_carry_their_sources_snapshot_date(local_store, popest_bytes, gazet
     rows = popest_metrics(ctx)
     assert rows and all(r.as_of == "2026-09-18" for r in rows)
     assert all(r.r2_key.startswith("raw/popest/2026-09-18/") for r in rows)
+
+
+IRS_IN = (
+    "y2_statefips,y2_countyfips,y1_statefips,y1_countyfips,y1_state,y1_countyname,n1,n2,agi\n"
+    "36,039,96,000,NY,Greene County Total Migration-US and Foreign,1332,2158,101255\n"
+    "36,039,97,000,NY,Greene County Total Migration-US,1332,2158,101255\n"
+    "36,039,36,039,NY,Greene County Non-migrants,18883,33920,1506694\n"
+    "36,111,96,000,NY,Ulster County Total Migration-US and Foreign,5000,9000,1\n"
+    "36,111,36,111,NY,Ulster County Non-migrants,60000,91000,1\n"
+    "36,001,96,000,NY,Albany County Total Migration-US and Foreign,-1,-1,-1\n"
+    "36,001,36,001,NY,Albany County Non-migrants,100000,150000,1\n"
+    "42,1,96,0,PA,Adams County Total Migration-US and Foreign,1,1,1\n"  # unpadded, older files
+)
+IRS_OUT = (
+    "y1_statefips,y1_countyfips,y2_statefips,y2_countyfips,y2_state,y2_countyname,n1,n2,agi\n"
+    "36,039,96,000,NY,Greene County Total Migration-US and Foreign,1307,2160,109566\n"
+    "36,111,96,000,NY,Ulster County Total Migration-US and Foreign,4000,8000,1\n"
+    "36,001,96,000,NY,Albany County Total Migration-US and Foreign,7000,9000,1\n"
+)
+
+
+def test_irs_county_net_migration_rate_and_benchmark(ctx):
+    inflow = parse_flows(IRS_IN.encode("latin-1"), "inflow")
+    assert inflow["039"].total == 2158 and inflow["039"].stayed == 33920
+    assert inflow["001"].total is None  # IRS suppression marker
+    assert parse_flows(IRS_IN.encode("latin-1"), "inflow", state="42")["001"].total == 1  # PA
+    rates = net_rates(inflow, parse_flows(IRS_OUT.encode("latin-1"), "outflow"))
+    assert rates["039"] == pytest.approx(1000 * (2158 - 2160) / (33920 + 2160))
+    assert rates["111"] == pytest.approx(1000 * 1000 / 99000) and "001" not in rates
+    s = ctx.store
+    s.put_bytes(f"raw/irs/{AS}/countyinflow2223.csv", IRS_IN.encode("latin-1"))
+    s.put_bytes(f"raw/irs/{AS}/countyoutflow2223.csv", IRS_OUT.encode("latin-1"))
+    s.put_bytes(
+        f"raw/irs/{AS}/countyinflow2122.csv", IRS_IN.encode("latin-1")
+    )  # no outflow: skipped
+    assert list(year_pairs(ctx.keys("irs"))) == ["2022-2023"]
+    rows = {(r.geoid, r.metric): r for r in irs_metrics(ctx)}
+    catskill = rows[("3613002", "county_net_migration_rate")]
+    assert catskill.value == pytest.approx(rates["039"]) and catskill.period == "2022-2023"
+    assert catskill.r2_key == f"raw/irs/{AS}/countyinflow2223.csv"
+    assert rows[("3613002", "county_migration_outflow")].r2_key.endswith("countyoutflow2223.csv")
+    bench = rows[("3613002", "county_net_migration_rate_ny_median")]
+    assert bench.value == pytest.approx((rates["039"] + rates["111"]) / 2)
+    assert rows[("3639727", "county_net_migration_rate")].value == pytest.approx(rates["111"])
