@@ -395,6 +395,10 @@ def test_community_names():
     ]
     assert community_names("The Village of Sleepy Hollow") == ["Sleepy Hollow"]
     assert community_names("Catskill") == ["Catskill"]
+    assert "Gloversville" in community_names("Downtown Improvement in Gloversville")
+    assert "Little Falls" in community_names("Little Falls\u2019 Downtown Waterfront District")
+    assert "Troy" in community_names("Troy\u2019s Riverwalk DRI District")
+    assert "Kingston" not in community_names("Kingston Falls' Waterfront District")
 
 
 def test_dri_metrics_match_region_and_latest_award(ctx):

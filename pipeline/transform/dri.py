@@ -195,35 +195,79 @@ DRI_REGION_TO_SCOPE = {
 PREFIXES = re.compile(r"^(the\s+)?(village|city|town|hamlet|downtown)\s+(of\s+)?", re.IGNORECASE)
 
 
+DESCRIPTORS = {
+    "downtown",
+    "improvement",
+    "improvements",
+    "in",
+    "of",
+    "the",
+    "waterfront",
+    "district",
+    "dri",
+    "ny",
+    "forward",
+    "riverwalk",
+    "painted",
+    "village",
+    "city",
+    "town",
+    "hamlet",
+    "gateway",
+    "corridor",
+    "center",
+    "centre",
+    "neighborhood",
+    "neighbourhood",
+    "uptown",
+    "area",
+    "core",
+    "main",
+    "street",
+    "historic",
+    "revitalization",
+    "initiative",
+}
+
+
+def core_name(label: str) -> str:
+    """The label with the programs' descriptor words and possessives removed.
+
+    "Downtown Improvement in Gloversville" -> "Gloversville"; "Little Falls' Downtown
+    Waterfront District" -> "Little Falls"; "Kingston Falls' Waterfront District" ->
+    "Kingston Falls" (which then matches nothing, rather than crediting Kingston)."""
+    words = re.sub(r"[’']s?(?=\s|$)", "", label).split()
+    kept = [w for w in words if w.lower().strip(",.-") not in DESCRIPTORS]
+    return " ".join(kept)
+
+
 def community_names(text: str) -> list[str]:
     """Candidate place names from a community label, e.g. "Village of Clinton and Town of
     Kirkland" -> ["Clinton", "Kirkland"]; "Tannersville’s Painted Village DRI District" ->
-    ["Tannersville"]."""
+    ["Tannersville"]. The descriptor-stripped core of each part is added as a fallback."""
     text = re.split(r"[’']s\b", text, maxsplit=1)[0]
     parts = re.split(r",|\band\b|–|—|/", text)
-    names = []
+    names: list[str] = []
     for part in parts:
         part = PREFIXES.sub("", part.strip()).strip()
         part = re.sub(r"\s+(DRI|NY Forward).*$", "", part, flags=re.IGNORECASE)
         if part:
             names.append(part)
+            core = core_name(part)
+            if core and core != part:
+                names.append(core)
     return names
 
 
 def match_awards(awards: list[Award], ctx: Context) -> dict[str, list[Award]]:
     """geoid -> awards whose community name and REDC region match a scope town.
 
-    Exact matches on the normalised community parts come first. Labels the programs wrote
-    around a place name ("Downtown Improvement in Gloversville", "Little Falls' Downtown
-    Waterfront District") fall back to the longest town name contained in the label as
-    whole words, within the same region, so "Hudson Falls" never credits Hudson.
+    Matching is exact on the normalised name (or the label's descriptor-stripped core) and
+    the region, so "Kingston Falls' Waterfront District" never credits Kingston.
     """
     by_region: dict[tuple[str, str], str] = {
         (slugify(t.name), t.region): t.geoid for t in ctx.towns
     }
-    towns_in_region: dict[str, list[tuple[str, str]]] = {}
-    for t in ctx.towns:
-        towns_in_region.setdefault(t.region, []).append((slugify(t.name), t.geoid))
     matched: dict[str, list[Award]] = {}
     for award in awards:
         region = DRI_REGION_TO_SCOPE.get(award.region)
@@ -234,15 +278,6 @@ def match_awards(awards: list[Award], ctx: Context) -> dict[str, list[Award]]:
             geoid = by_region.get((slugify(name), region))
             if geoid:
                 hits.append(geoid)
-        if not hits:
-            haystack = f"-{slugify(award.community)}-"
-            contained = [
-                (len(slug), geoid)
-                for slug, geoid in towns_in_region.get(region, [])
-                if f"-{slug}-" in haystack
-            ]
-            if contained:
-                hits.append(max(contained)[1])
         for geoid in dict.fromkeys(hits):
             matched.setdefault(geoid, []).append(award)
     return matched
