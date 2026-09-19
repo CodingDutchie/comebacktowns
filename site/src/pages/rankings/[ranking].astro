@@ -1,7 +1,8 @@
 ---
 import Base from "../../layouts/Base.astro";
 import Grade from "../../components/Grade.astro";
-import { band, meta } from "../../lib/data";
+import Momentum from "../../components/Momentum.astro";
+import { band, meta, momentum } from "../../lib/data";
 import { population, score1 } from "../../lib/format";
 import { rankings, type Ranking } from "../../lib/rankings";
 
@@ -14,27 +15,31 @@ const fmtPrimary = (v: number) =>
   ranking.slug === "price-headroom" ? `${(v * 100).toFixed(0)}%` : ranking.slug === "value-within-an-hour" ? (Number.isNaN(v) ? "n/a" : `${Math.round(v)} min`) : v.toFixed(1);
 ---
 <Base title={ranking.title} description={ranking.description}>
-  <h1>{ranking.title}</h1>
-  <p class="lede">{ranking.description}</p>
-  <p class="small">Other rankings: {rankings.filter((r) => r.slug !== ranking.slug).map((r, i) => <>{i > 0 && " · "}<a href={`/rankings/${r.slug}`}>{r.title}</a></>)}</p>
-  <div class="table-wrap">
-    <table>
-      <thead><tr><th>#</th><th>Town</th><th>Region</th><th>Band</th><th>Grade</th><th class="num">{ranking.primaryLabel}</th><th class="num">Readiness</th><th>Note</th></tr></thead>
-      <tbody>
-        {rows.map((r, i) => (
-          <tr>
-            <td>{i + 1}</td>
-            <td><a href={`/town/${r.town.slug}`}>{r.town.name}</a> <span class="muted small">{r.town.county}</span></td>
-            <td class="small">{r.town.region}</td>
-            <td class="small">{band(r.town)} <span class="muted">({population(r.town.pop_latest)})</span></td>
-            <td><Grade grade={r.grade} /></td>
-            <td class="num">{fmtPrimary(r.primary)}</td>
-            <td class="num">{score1(r.readiness)}</td>
-            <td class="small muted">{r.extra}</td>
-          </tr>
-        ))}
-      </tbody>
-    </table>
+  <div class="wrap">
+    <p class="eyebrow" style="margin:0">Ranking</p>
+    <h1>{ranking.title}</h1>
+    <p class="lede">{ranking.description}</p>
+    <p class="chips">{rankings.filter((r) => r.slug !== ranking.slug).map((r) => <a href={`/rankings/${r.slug}`}>{r.title}</a>)}</p>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>#</th><th>Town</th><th>Region</th><th>Band</th><th>Grade</th><th class="num">{ranking.primaryLabel}</th><th class="num">Readiness</th><th>Momentum</th><th>Note</th></tr></thead>
+        <tbody>
+          {rows.map((r, i) => (
+            <tr>
+              <td class="mono muted">{i + 1}</td>
+              <td><a class="town" href={`/town/${r.town.slug}`}>{r.town.name}</a> <span class="sub">{r.town.county}</span></td>
+              <td class="muted small">{r.town.region}</td>
+              <td class="small">{band(r.town)} <span class="muted">({population(r.town.pop_latest)})</span></td>
+              <td><Grade grade={r.grade} /></td>
+              <td class="num">{fmtPrimary(r.primary)}</td>
+              <td class="num">{score1(r.readiness)}</td>
+              <td><Momentum m={momentum[r.town.geoid]} /></td>
+              <td class="small muted">{r.extra}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+    <p class="muted small">{rows.length} of {meta.town_count} towns qualify. <a href="/methodology">How the scores work.</a></p>
   </div>
-  <p class="muted small">{rows.length} of {meta.town_count} towns qualify. <a href="/methodology">How the score works.</a></p>
 </Base>

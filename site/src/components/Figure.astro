@@ -1,27 +1,24 @@
 ---
 /**
- * One headline number. A suppressed value says so and links to the explanation; a missing
- * value says so too. Never a blank, never a zero standing in for "unknown".
+ * One headline number with its source and period, and an optional comparison line. A
+ * suppressed value says so and links to the explanation; a missing value says so too.
+ * Never a blank, never a zero standing in for "unknown".
  */
-import { sourceById, type MetricEntry } from "../lib/data";
+import { sourceShort, type MetricEntry } from "../lib/data";
 import { formatValue, label } from "../lib/format";
 
-interface Props { name: string; entry?: MetricEntry; secondary?: { name: string; entry?: MetricEntry }; }
-const { name, entry, secondary } = Astro.props;
-const src = entry ? sourceById.get(entry.source_id) : undefined;
-const sec = secondary?.entry;
+interface Props { name: string; entry?: MetricEntry; note?: string; label?: string; }
+const { name, entry, note, label: heading } = Astro.props;
+const meta = [entry ? `${sourceShort(entry.source_id)} ${entry.period}` : "no source yet", note].filter(Boolean).join(" · ");
 ---
-<div class="card">
-  <span class="label">{label(name)}</span>
+<div class="card figure">
+  <span class="label mono">{heading ?? label(name)}</span>
   {entry && entry.value !== null && !entry.suppressed ? (
     <span class="value">{formatValue(name, entry.value)}</span>
   ) : entry && entry.suppressed ? (
-    <span class="value na"><a href="/methodology#suppression">Not available at this sample size</a></span>
+    <span class="value na"><a href="/methodology#suppression">not available at this sample size</a></span>
   ) : (
-    <span class="value na"><a href="/methodology#missing">Not available</a></span>
+    <span class="value na"><a href="/methodology#missing">not available</a></span>
   )}
-  {entry && <span class="meta">{src?.publisher ?? entry.source_id} · {entry.period}</span>}
-  {sec && sec.value !== null && !sec.suppressed && (
-    <span class="meta">{label(secondary!.name)}: {formatValue(secondary!.name, sec.value)} ({sec.period})</span>
-  )}
+  <span class="meta">{meta}</span>
 </div>

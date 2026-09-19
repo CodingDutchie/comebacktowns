@@ -1,21 +1,25 @@
 ---
 import Base from "../layouts/Base.astro";
-import { sources } from "../lib/data";
+import { sources, sourceShort } from "../lib/data";
 ---
 <Base title="Sources" description="Every data feed behind the site, with licence, attribution and last pull date.">
-  <h1>Sources</h1>
-  <p class="lede">Every feed the site is built from. Each town page lists which of these files each of its figures came from.</p>
-  {sources.map((s) => (
-    <section>
-      <h2 id={s.id}>{s.name}</h2>
-      <ul class="plain small">
-        <li><strong>Publisher:</strong> {s.publisher}</li>
-        <li><strong>Used for:</strong> {s.used_for}</li>
-        <li><strong>Licence:</strong> {s.licence}</li>
-        <li><strong>Attribution:</strong> {s.attribution}</li>
-        <li><strong>Refresh:</strong> {s.cadence} · <strong>last pulled:</strong> {s.last_pull ?? "not yet used in a published figure"}</li>
-        <li class="mono">{s.url}</li>
-      </ul>
-    </section>
-  ))}
+  <div class="wrap">
+    <h1>Sources</h1>
+    <p class="lede">Every feed the site is built from. These are inputs, not endorsements: each town page lists which of these files each of its figures came from.</p>
+    <p class="chips">{sources.map((s) => <a href={`#${s.id}`}>{sourceShort(s.id)}</a>)}</p>
+    <div class="stack">
+      {sources.map((s) => (
+        <section class="card" id={s.id}>
+          <div class="row-between"><h2 style="margin:0 0 .3rem">{s.name}</h2><span class="mono muted">{s.cadence} · last pulled {s.last_pull ?? "not yet used"}</span></div>
+          <p class="muted" style="margin:.2rem 0 .6rem">{s.publisher}</p>
+          <dl class="small" style="display:grid;grid-template-columns:auto 1fr;gap:.25rem .9rem;margin:0">
+            <dt class="muted">Used for</dt><dd style="margin:0">{s.used_for}</dd>
+            <dt class="muted">Licence</dt><dd style="margin:0">{s.licence}</dd>
+            <dt class="muted">Attribution</dt><dd style="margin:0">{s.attribution}</dd>
+            <dt class="muted">Where</dt><dd class="mono" style="margin:0;word-break:break-all">{s.url}</dd>
+          </dl>
+        </section>
+      ))}
+    </div>
+  </div>
 </Base>

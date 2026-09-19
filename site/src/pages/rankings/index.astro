@@ -3,6 +3,11 @@ import Base from "../../layouts/Base.astro";
 import { rankings } from "../../lib/rankings";
 ---
 <Base title="Rankings" description="Rankings of New York towns by readiness, momentum, price headroom and value near a city.">
-  <h1>Rankings</h1>
-  <ul>{rankings.map((r) => <li><a href={`/rankings/${r.slug}`}>{r.title}</a> <span class="muted">— {r.description}</span></li>)}</ul>
+  <div class="wrap">
+    <h1>Rankings</h1>
+    <p class="lede">Start with a question. Each ranking is one sentence long and links to every town in it.</p>
+    <div class="cards" style="grid-template-columns:repeat(auto-fit,minmax(16rem,1fr))">
+      {rankings.map((r) => <a class="card link" href={`/rankings/${r.slug}`}><span class="title">{r.title}</span><span class="muted small">{r.description}</span></a>)}
+    </div>
+  </div>
 </Base>

@@ -178,6 +178,19 @@ applied with wrangler), `site/` (Astro 5, static), `worker/` (Phase 5 API), `tes
   If that ever changes it is `momentum.v3.yml`, never an edit to v2.
   New IRS years are added to `years` in `config/sources.yml`, like permits. The Worker
   index key is `index:v3`.
+- **Design ("Ledger").** Dark slate header and hero bands over a light ledger body, IBM Plex
+  Sans for text and IBM Plex Mono for every figure, code and label (Google Fonts, preconnected,
+  `display=swap`); colour tokens and all component CSS live in `site/src/layouts/Base.astro`,
+  with a dark scheme under `prefers-color-scheme`. The mark is the "Return" roofline-arrow
+  (`site/src/components/Logo.astro`, `site/public/favicon.svg`); the social card and Apple
+  touch icon are rendered from it by `site/scripts/render-images.mjs` with the pre-installed
+  Chromium (`CHROMIUM_PATH=/opt/pw-browsers/chromium-*/chrome-linux/chrome`) and committed.
+  Grade tiles (`Grade.astro`) and momentum chips (`Momentum.astro`, "▲ RISING 74", or
+  "NO LABEL · 2 OF 4" when the inputs are short) share the geometry. The source strip on the
+  home page is typographic on purpose: agency seals and logos imply endorsement and several
+  are restricted marks, so sources are named, never logoed. Town pages explain each score in
+  a sentence generated from the data (`readinessMeaning`, `momentumMeaning` in
+  `site/src/lib/format.ts`) and summarise each factor's inputs on one line (`inputSummary`).
 - **Snapshot resolution.** Each transform reads the latest snapshot of its own source on or
   before the run date and stamps rows with that date, so a monthly run re-pulls only the
   monthly feeds and every other figure keeps citing its most recent pull.

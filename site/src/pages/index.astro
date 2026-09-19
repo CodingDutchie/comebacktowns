@@ -2,35 +2,61 @@
 import Base from "../layouts/Base.astro";
 import Grade from "../components/Grade.astro";
 import Momentum from "../components/Momentum.astro";
-import { bandKey, meta, momentum, scores, towns, usingSampleData } from "../lib/data";
-import { score1 } from "../lib/format";
+import { meta, methodology, metric, momentum, scores, sources, sourceShort, towns, usable, usingSampleData } from "../lib/data";
+import { formatValue, momentumMeaning, population, score1 } from "../lib/format";
+import { rankings } from "../lib/rankings";
 
-const site = meta.site;
 const graded = towns.filter((t) => scores[t.geoid]);
-const rising = towns.filter((t) => momentum[t.geoid]?.label === "rising").sort((a, b) => momentum[b.geoid].momentum - momentum[a.geoid].momentum).slice(0, 8);
-const labelCounts = ["rising", "steady", "fading"].map((l) => [l, towns.filter((t) => momentum[t.geoid]?.label === l).length] as const);
-const top = (key: "small" | "large") =>
-  graded.filter((t) => bandKey(t) === key).sort((a, b) => scores[b.geoid].readiness - scores[a.geoid].readiness).slice(0, 8);
-const regions = [...new Set(towns.map((t) => t.region))].sort();
+const top = [...graded].sort((a, b) => scores[b.geoid].readiness - scores[a.geoid].readiness).slice(0, 8);
+const rising = towns.filter((t) => momentum[t.geoid]?.label === "rising").sort((a, b) => momentum[b.geoid].momentum - momentum[a.geoid].momentum);
+const counts = Object.fromEntries(["rising", "steady", "fading"].map((l) => [l, towns.filter((t) => momentum[t.geoid]?.label === l).length]));
+const unlabelled = towns.filter((t) => momentum[t.geoid] && !momentum[t.geoid].label).length;
+const bands = methodology.momentum.grading.bands;
+const regions = [...new Set(towns.map((t) => t.region))].sort().map((r) => {
+  const members = towns.filter((t) => t.region === r);
+  const best = members.filter((t) => scores[t.geoid]).sort((a, b) => scores[b.geoid].readiness - scores[a.geoid].readiness).slice(0, 4);
+  return { name: r, count: members.length, best };
+});
+const fmt = (geoid: string, name: string) => { const e = metric(geoid, name); return usable(e) ? formatValue(name, e.value) : "n/a"; };
 ---
 
 <Base>
-  <h1>Which New York towns are ready for a comeback?</h1>
-  <p class="lede">
-    {site.SITE_NAME} grades {meta.town_count} cities and villages in the Hudson Valley, Capital Region and Mohawk Valley on one
-    question: are the ingredients for a revival present? Access, building stock, main street, price headroom, services and
-    civic capacity, each from public data, each figure with its source and date. A second score, momentum, asks whether
-    anything is actually happening yet: home values, permits, population and migration, each against a benchmark.
-  </p>
-  {usingSampleData && <p class="notice">This build uses the sample fixture: only {meta.town_count} towns are shown.</p>}
-
-  <form class="search" action="/towns" method="get" id="find">
-    <label for="q" class="muted">Find a town</label>
-    <input id="q" name="q" type="search" list="town-names" placeholder="Catskill, Hudson, Little Falls…" autocomplete="off" />
-    <datalist id="town-names">{towns.map((t) => <option value={t.name} data-slug={t.slug}>{t.county} County</option>)}</datalist>
-    <button type="submit">Go</button>
-  </form>
-  <ul id="hits" class="plain" hidden></ul>
+  <section class="band">
+    <div class="wrap hero-grid">
+      <div>
+        <h1>Which New York towns are ready for a comeback?</h1>
+        <p class="lede muted" style="font-size:1.1rem">
+          {meta.town_count} cities and villages in the Hudson Valley, Capital Region and Mohawk Valley, each with two scores from
+          public data. Every figure names the file it came from and the date it was pulled.
+        </p>
+        {usingSampleData && <p class="notice">This build uses the sample fixture: only {meta.town_count} towns are shown.</p>}
+        <form class="search" action="/towns" method="get" id="find">
+          <label for="q" class="muted small" style="flex-basis:100%">Find a town</label>
+          <input id="q" name="q" type="search" list="town-names" placeholder="Catskill, Hudson, Little Falls…" autocomplete="off" />
+          <datalist id="town-names">{towns.map((t) => <option value={t.name} data-slug={t.slug}>{t.county} County</option>)}</datalist>
+          <button type="submit">Search</button>
+        </form>
+        <ul id="hits" class="plain" hidden></ul>
+      </div>
+      <div class="stack">
+        <div class="panel legend">
+          <span class="keys"><Grade grade="A" /><Grade grade="C" /><Grade grade="F" /></span>
+          <span><strong>Readiness grade: are the ingredients there?</strong><span class="text">Access, building stock, main street, price headroom, services, civic capacity. Graded A to F against towns of the same size, so it is a rank.</span></span>
+        </div>
+        <div class="panel legend">
+          <span class="keys col"><span class="momentum rising">▲ {counts.rising}</span><span class="momentum steady">▶ {counts.steady}</span><span class="momentum fading">▼ {counts.fading}</span></span>
+          <span><strong>Momentum label: is anything happening yet?</strong><span class="text">Home values, permits, population and county migration, each against a benchmark. 50 is keeping pace; rising at {bands.rising}, fading below {bands.steady}. A direction, not a rank. {unlabelled} towns lack the data for a label.</span></span>
+        </div>
+      </div>
+    </div>
+    <div class="strip">
+      <div class="wrap">
+        <span class="lead">{sources.length} PUBLIC SOURCES</span>
+        {sources.map((s, i) => <>{i > 0 && <span aria-hidden="true">·</span>}<a href={`/sources#${s.id}`}>{sourceShort(s.id)}</a></>)}
+        <a class="more" href="/sources">licences and last pulls →</a>
+      </div>
+    </div>
+  </section>
   <script is:inline>
     // Progressive enhancement: search-as-you-type against /api/search, with the datalist as
     // the no-JS fallback. Content on this page never depends on it.
@@ -40,7 +66,7 @@ const regions = [...new Set(towns.map((t) => t.region))].sort();
     let timer = null, last = "";
     const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
     const render = (results) => {
-      hits.innerHTML = results.map((r) => `<li><a href="/town/${esc(r.slug)}">${esc(r.name)}</a> <span class="muted small">${esc(r.legal_type)}, ${esc(r.county)} County${r.grade ? ` · grade ${esc(r.grade)}` : ""}</span></li>`).join("");
+      hits.innerHTML = results.map((r) => `<li><a href="/town/${esc(r.slug)}">${esc(r.name)}</a> <span class="muted small">${esc(r.legal_type)}, ${esc(r.county)} County${r.grade ? ` · grade ${esc(r.grade)}` : ""}${r.momentum_label ? ` · ${esc(r.momentum_label)}` : ""}</span></li>`).join("");
       hits.hidden = results.length === 0;
     };
     q.addEventListener("input", () => {
@@ -66,63 +92,83 @@ const regions = [...new Set(towns.map((t) => t.region))].sort();
     });
   </script>
 
-  <div class="two">
-    {(["small", "large"] as const).map((key) => (
+  <div class="wrap">
+    <div class="row-between"><h2>Start with a question</h2><span class="muted small">Four rankings, each one sentence long.</span></div>
+    <div class="cards" style="grid-template-columns:repeat(auto-fit,minmax(13rem,1fr))">
+      {rankings.map((r) => <a class="card link" href={`/rankings/${r.slug}`}><span class="title">{r.title}</span><span class="muted small">{r.question}</span></a>)}
+    </div>
+
+    <div class="row-between"><h2>Highest readiness</h2><span class="mono muted">both bands · <a href="/rankings/highest-readiness">all {graded.length} →</a></span></div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>#</th><th>Town</th><th>Region</th><th class="num">Pop.</th><th>Grade</th><th class="num">Readiness</th><th>Momentum</th><th class="num">Home value</th><th class="num">To NYC</th></tr></thead>
+        <tbody>
+          {top.map((t, i) => (
+            <tr>
+              <td class="mono muted">{i + 1}</td>
+              <td><a class="town" href={`/town/${t.slug}`}>{t.name}</a> <span class="sub">{t.county} · {t.legal_type}</span></td>
+              <td class="muted">{t.region}</td>
+              <td class="num">{population(t.pop_latest)}</td>
+              <td><Grade grade={scores[t.geoid].grade} /></td>
+              <td class="num">{score1(scores[t.geoid].readiness)}</td>
+              <td><Momentum m={momentum[t.geoid]} /></td>
+              <td class="num">{fmt(t.geoid, "median_home_value")}</td>
+              <td class="num">{fmt(t.geoid, "drive_min_nyc")}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+    <p class="muted small">A grade ranks a town against others of its size; the momentum chip is the town's own direction, so an A can be fading and a D can be rising. "No label" means fewer than three of the four momentum inputs exist for that town.</p>
+
+    <div class="split even">
       <section>
-        <h2>{key === "small" ? "Villages and small cities (under 5,000)" : "Cities and larger villages (5,000+)"}</h2>
-        <div class="table-wrap">
-          <table>
-            <thead><tr><th>Town</th><th>Grade</th><th class="num">Readiness</th></tr></thead>
-            <tbody>
-              {top(key).map((t) => (
-                <tr>
-                  <td><a href={`/town/${t.slug}`}>{t.name}</a> <span class="muted small">{t.county}</span></td>
-                  <td><Grade grade={scores[t.geoid].grade} /></td>
-                  <td class="num">{score1(scores[t.geoid].readiness)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        <div class="row-between"><h2>Rising now</h2><a class="small" href="/rankings/strongest-momentum">all {rising.length} →</a></div>
+        <div class="cards" style="grid-template-columns:repeat(auto-fit,minmax(16rem,1fr))">
+          {rising.slice(0, 4).map((t) => (
+            <a class="card link rise" href={`/town/${t.slug}`}>
+              <Grade grade={scores[t.geoid]?.grade ?? null} />
+              <span class="stack" style="gap:.25rem">
+                <span class="title">{t.name} <span class="muted" style="font-weight:400">{t.county}</span></span>
+                <span class="mono" style="color:var(--rising)">▲ RISING {Math.round(momentum[t.geoid].momentum)} · READINESS {score1(scores[t.geoid]?.readiness)}</span>
+                <span class="why">{momentumMeaning(momentum[t.geoid])}</span>
+              </span>
+            </a>
+          ))}
         </div>
-        <p class="small"><a href="/rankings/highest-readiness">Full ranking →</a></p>
       </section>
-    ))}
+      <section>
+        <h2>Browse by region</h2>
+        <div class="stack">
+          {regions.map((r) => (
+            <a class="card link region" href={`/towns#${r.name.toLowerCase().replace(/\s+/g, "-")}`}>
+              <span class="stack" style="gap:.1rem"><span class="title">{r.name}</span><span class="muted small">{r.best.map((t) => t.name).join(", ")}…</span></span>
+              <span class="count">{r.count}</span>
+            </a>
+          ))}
+          <a class="card link dark" href="/compare"><span class="title">Compare up to three towns</span><span class="muted small">Side by side, every headline figure, shareable as a link.</span></a>
+        </div>
+      </section>
+    </div>
+
+    <div class="split even">
+      <section>
+        <h2>What this is not</h2>
+        <p>
+          A readiness grade says the ingredients are there. The momentum label says whether anything is happening yet, from four
+          public series; it is not a forecast, and its migration input is a county figure. Every competitor sells the town. This
+          site also says when one is stalling, which only works if every number carries its source, so
+          <a href="/methodology">the methodology</a> is written for a town official to argue with.
+        </p>
+      </section>
+      <section>
+        <h2>For builders</h2>
+        <div class="card stack" style="gap:.35rem">
+          <span class="title">The same data, three ways</span>
+          <span class="small">A CSV of every town and figure (CC BY 4.0), a JSON API for search, filter and compare, and the raw snapshot key on every figure.</span>
+          <span class="mono" style="color:var(--link)">GET /api/filter?momentum=rising&amp;max_drive_nyc=120</span>
+        </div>
+      </section>
+    </div>
   </div>
-
-  <h2>Rising now</h2>
-  <p class="muted small">Towns whose momentum score is 60 or more: {labelCounts.map(([l, n]) => `${n} ${l}`).join(" · ")}. A town keeping pace with the typical New York place scores 50.</p>
-  <div class="table-wrap">
-    <table>
-      <thead><tr><th>Town</th><th>Momentum</th><th class="num">Score</th><th>Grade</th><th class="num">Readiness</th></tr></thead>
-      <tbody>
-        {rising.map((t) => (
-          <tr>
-            <td><a href={`/town/${t.slug}`}>{t.name}</a> <span class="muted small">{t.county}</span></td>
-            <td><Momentum label={momentum[t.geoid].label} /></td>
-            <td class="num">{score1(momentum[t.geoid].momentum)}</td>
-            <td><Grade grade={scores[t.geoid]?.grade ?? null} /></td>
-            <td class="num">{score1(scores[t.geoid]?.readiness)}</td>
-          </tr>
-        ))}
-      </tbody>
-    </table>
-  </div>
-  <p class="small"><a href="/rankings/strongest-momentum">Full momentum ranking →</a></p>
-
-  <h2>Rankings</h2>
-  <ul>
-    <li><a href="/rankings/highest-readiness">Highest readiness</a></li>
-    <li><a href="/rankings/strongest-momentum">Strongest momentum</a></li>
-    <li><a href="/rankings/price-headroom">Best price headroom</a></li>
-    <li><a href="/rankings/value-within-an-hour">Best value within an hour of a city</a></li>
-  </ul>
-
-  <h2>What this is not</h2>
-  <p>
-    A readiness grade says the ingredients are there. The momentum label says whether anything is happening yet, from four
-    public series; it is not a forecast, and its migration input is a county figure. Every competitor sells the town. This
-    site also says when one is stalling, which only works if every number carries its source, so
-    <a href="/methodology">the methodology</a> is written for a town official to argue with.
-  </p>
-  <p class="muted small">Regions covered: {regions.join(", ")}. Missing figures are shown as missing, never as zero.</p>
 </Base>

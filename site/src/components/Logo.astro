@@ -1,0 +1,14 @@
+---
+/**
+ * The Return mark: a roofline that dips, then turns into a rising arrow. The gable takes
+ * the current text colour, the arrow the accent, so it sits on the dark header and on
+ * white alike. The same geometry is in public/favicon.svg.
+ */
+interface Props { size?: number; title?: string; }
+const { size = 28, title } = Astro.props;
+---
+<svg class="logo" width={size} height={size} viewBox="0 0 64 64" role={title ? "img" : undefined} aria-hidden={title ? undefined : "true"}>
+  {title && <title>{title}</title>}
+  <path d="M10 46 L26 26 L36 36" fill="none" stroke="currentColor" stroke-width="8" stroke-linecap="round" stroke-linejoin="round" />
+  <path d="M36 36 L54 18 M42 18 H54 V30" fill="none" stroke="var(--accent)" stroke-width="8" stroke-linecap="round" stroke-linejoin="round" />
+</svg>

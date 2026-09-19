@@ -1,14 +1,22 @@
 ---
-import { momentumLabels } from "../lib/data";
+/**
+ * The momentum chip: direction, not rank. "▲ RISING 74", or "NO LABEL · 2 OF 4" when the
+ * town lacks the inputs for one, or "NOT SCORED" when there is no momentum run at all.
+ */
+import { momentumLabels, type Momentum } from "../lib/data";
+import { momentumUsage } from "../lib/format";
 
-interface Props { label: string | null; big?: boolean; }
-const { label, big = false } = Astro.props;
-const arrow = label === "rising" ? "▲" : label === "fading" ? "▼" : label === "steady" ? "▶" : "";
+interface Props { m?: Momentum | null; big?: boolean; }
+const { m, big = false } = Astro.props;
+const arrow: Record<string, string> = { rising: "▲", steady: "▶", fading: "▼" };
+const usage = m ? momentumUsage(m) : null;
 ---
-{label ? (
-  <span class:list={["momentum", label, { big }]} aria-label={`Momentum: ${momentumLabels[label] ?? label}`}>
-    <span aria-hidden="true">{arrow}</span> {momentumLabels[label] ?? label}
+{m && m.label ? (
+  <span class:list={["momentum", m.label, { big }]} aria-label={`Momentum ${momentumLabels[m.label] ?? m.label}, ${Math.round(m.momentum)} of 100`}>
+    {`${arrow[m.label] ?? ""} ${(momentumLabels[m.label] ?? m.label).toUpperCase()} ${Math.round(m.momentum)}`}
   </span>
+) : m ? (
+  <span class:list={["momentum", "none", { big }]} title="Fewer inputs than a label needs">{`NO LABEL · ${usage!.used} OF ${usage!.total}`}</span>
 ) : (
-  <span class:list={["momentum", "none", { big }]}>no momentum label</span>
+  <span class:list={["momentum", "none", { big }]}>NOT SCORED</span>
 )}
