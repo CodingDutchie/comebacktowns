@@ -91,7 +91,7 @@ const crumbs = [
     <section class="answer">
       <h2>Is {town.name}, NY a good place to live or invest in?</h2>
       <p class="lede" style="max-width:none">{summary.join(" ")}</p>
-      <p class="small muted">Written from the figures below, not by hand. {meta.site.SITE_NAME} sells nothing and takes no listings; a grade ranks a town against others of its size, and a momentum label is direction, not a forecast. None of it is financial, investment or relocation advice: check the cited source before acting on a figure. <a href="/methodology">How the scores work</a> · <a href="/about#not">what this site is not</a>.</p>
+      <p class="small muted">Written from the figures below, not by hand. {meta.site.SITE_NAME} sells nothing and takes no listings; a grade ranks a town against others of its size, and a momentum label is direction, not a forecast. None of it is financial, investment or relocation advice, and none of it measures crime or safety: check the cited source before acting on a figure. <a href="/methodology">How the scores work</a> · <a href="/about#not">what this site is not</a>.</p>
       <h3 id="facts">Key facts, each with its period and source</h3>
       <dl class="facts">
         {facts.map((f) => <div><dt>{f.label}</dt><dd><span class="mono">{f.value}</span><span class="meta">{f.period} · {f.source}</span></dd></div>)}

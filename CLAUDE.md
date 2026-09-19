@@ -211,9 +211,11 @@ applied with wrangler), `site/` (Astro 5, static), `worker/` (Phase 5 API), `tes
   WebPage, BreadcrumbList, plus Place/ItemList/FAQPage/Dataset), generated `robots.txt`,
   `llms.txt` and `llms-full.txt`, and sitemap `lastmod` from the export stamp. Every
   sentence is built from the data with its period, never written by hand, so it stays true
-  on every publish. Nothing claims what the data cannot show (no crime, no schools rating).
-  The disclaimers live in one place, `/about#not` (not advice, as is, not about who should
-  live where, not endorsed by sources, no tracking), linked from the footer, every town
+  on every publish. Nothing claims what the data cannot show: there is no crime or schools
+  input, the owner chose on 2026-09-19 to leave crime out (village-scale counts are too
+  noisy and agency coverage too patchy), and the site says so rather than letting a grade be
+  read as safety. The disclaimers live in one place, `/about#not` (not advice, as is, not a
+  safety rating, not about who should live where, not endorsed by sources, no tracking), linked from the footer, every town
   page's summary and `llms.txt`; the services blurb names the metric, not a group of people.
 - **Snapshot resolution.** Each transform reads the latest snapshot of its own source on or
   before the run date and stamps rows with that date, so a monthly run re-pulls only the
