@@ -74,9 +74,10 @@ applied with wrangler), `site/` (Astro 5, static), `worker/` (Phase 5 API), `tes
   polygons), `hospitals` (NYS DOH facility list), `osrm` (drive minutes to NYC, the nearest
   regional hub and the nearest hospitals, one cached `table` call per town at the demo
   server's 1 req/s), and the ACS tables B14001/B09001 at two non-overlapping vintages
-  (2015-2019 and 2020-2024) for `school_enrollment_trend`. `broadband_100_share` cannot be
-  sourced: the FCC broadband map's bulk files sit behind a login (403), so the metric will be
-  the ACS B28002 broadband *subscription* share and the methodology page will say so.
+  (2015-2019 and 2020-2024) for `school_enrollment_trend`. The plan's `broadband_100_share`
+  cannot be sourced (the FCC broadband map's bulk files sit behind a login, 403), so the input
+  is `broadband_subscription_share`, the ACS B28002 cable/fiber/DSL subscription share, and
+  the methodology page says so.
 - **Metro-North's West-of-Hudson stations** (Port Jervis line) are not in the MTA GTFS feed
   and NJ Transit's requires a developer registration, so `config/rail_stations_manual.yml`
   carries the nine stations transcribed from MTA station pages, with the source named.

@@ -183,8 +183,7 @@ def test_explain_is_an_audit_trail():
     text = explain(score, t, scoring_config("v1"), CURVES["v1"])
     assert "Catskill (village, Greene County" in text
     for name in FULL:
-        alias = "broadband_100_share" if name == "broadband_subscription_share" else name
-        assert alias in text
+        assert name in text
     assert "raw/test/median_home_value" in text and "curve:" in text and "contributes" in text
 
 

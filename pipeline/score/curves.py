@@ -154,7 +154,9 @@ CURVES_V1: dict[str, Curve] = {
             ),
         ),
     ),
-    "broadband_100_share": Linear("broadband_100_share", zero_at=0.50, one_at=0.90),
+    "broadband_subscription_share": Linear(
+        "broadband_subscription_share", zero_at=0.50, one_at=0.90
+    ),
     "under_18_share": Linear("under_18_share", zero_at=0.12, one_at=0.25),
     "hospital_within_20min": Flag(
         "hospital_within_20min", "a hospital is within a 20-minute drive"
