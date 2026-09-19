@@ -1,8 +1,9 @@
 ---
 import Base from "../../layouts/Base.astro";
 import { rankings } from "../../lib/rankings";
+import { year } from "../../lib/seo";
 ---
-<Base title="Rankings" description="Rankings of New York towns by readiness, momentum, price headroom and value near a city.">
+<Base title={`New York town rankings (${year})`} description="Rankings of Hudson Valley, Capital Region and Mohawk Valley towns by readiness, momentum, price, distance to New York City, rail access and state downtown awards, from dated public data." crumbs={[{ name: "Rankings", path: "/rankings" }]}>
   <div class="wrap">
     <h1>Rankings</h1>
     <p class="lede">Start with a question. Each ranking is one sentence long and links to every town in it.</p>

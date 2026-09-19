@@ -194,6 +194,16 @@ applied with wrangler), `site/` (Astro 5, static), `worker/` (Phase 5 API), `tes
   are restricted marks, so sources are named, never logoed. Town pages explain each score in
   a sentence generated from the data (`readinessMeaning`, `momentumMeaning` in
   `site/src/lib/format.ts`) and summarise each factor's inputs on one line (`inputSummary`).
+- **Search and answer engines.** Research and the checklist are in `docs/seo.md`. The
+  demand is long-tail questions ("is X ny a good place to live", "cheapest towns in the
+  hudson valley", "towns near nyc by train", DRI winners), so the site answers them from
+  the data: a quotable paragraph and dated key facts on every town page (`townSummary`,
+  `townFacts` in `site/src/lib/seo.ts`), region and county pages (`/region/…`, `/county/…`),
+  three question-shaped rankings, one JSON-LD `@graph` per page (WebSite, Organization,
+  WebPage, BreadcrumbList, plus Place/ItemList/FAQPage/Dataset), generated `robots.txt`,
+  `llms.txt` and `llms-full.txt`, and sitemap `lastmod` from the export stamp. Every
+  sentence is built from the data with its period, never written by hand, so it stays true
+  on every publish. Nothing claims what the data cannot show (no crime, no schools rating).
 - **Snapshot resolution.** Each transform reads the latest snapshot of its own source on or
   before the run date and stamps rows with that date, so a monthly run re-pulls only the
   monthly feeds and every other figure keeps citing its most recent pull.

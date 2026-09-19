@@ -4,8 +4,9 @@ import Grade from "../../components/Grade.astro";
 import Figure from "../../components/Figure.astro";
 import FactorCard from "../../components/FactorCard.astro";
 import Momentum from "../../components/Momentum.astro";
-import { band, bandKey, meta, methodology, metric, momentum, momentumLabels, scores, sourceById, towns, usable, type Town } from "../../lib/data";
+import { band, bandKey, meta, methodology, metric, momentum, scores, sourceById, towns, usable, type Town } from "../../lib/data";
 import { formatValue, label, momentumMeaning, momentumUsage, population, pct, readinessMeaning, score1 } from "../../lib/format";
+import { countyPath, placeLd, regionPath, townDescription, townFacts, townSummary, townTitle } from "../../lib/seo";
 
 export function getStaticPaths() {
   return towns.map((t) => ({ params: { slug: t.slug }, props: { town: t } }));
@@ -37,26 +38,22 @@ const perK = m("osm_business_per_1k");
 const permitRate = m("permits_per_1k");
 const zillowRent = m("zori");
 const usage = mo ? momentumUsage(mo) : null;
-const title = `${town.name}, NY`;
-const momentumText = mo?.label ? `, momentum ${momentumLabels[mo.label].toLowerCase()}` : "";
-const description = score
-  ? `${town.name} (${town.legal_type}, ${town.county} County) scores ${score1(score.readiness)} readiness, grade ${score.grade ?? "not graded"}${momentumText}, on ${meta.site.SITE_NAME}.`
-  : `${town.name}, ${town.county} County, on ${meta.site.SITE_NAME}.`;
-const jsonLd = {
-  "@context": "https://schema.org",
-  "@type": "Place",
-  name: town.name,
-  url: new URL(`/town/${town.slug}`, Astro.site).toString(),
-  address: { "@type": "PostalAddress", addressLocality: town.name, addressRegion: "NY", addressCountry: "US" },
-  geo: { "@type": "GeoCoordinates", latitude: town.lat, longitude: town.lon },
-  containedInPlace: { "@type": "AdministrativeArea", name: `${town.county} County, New York` },
-};
+const title = townTitle(town);
+const description = townDescription(town);
+const summary = townSummary(town);
+const facts = townFacts(town);
+const crumbs = [
+  { name: "All towns", path: "/towns" },
+  { name: `${town.region} towns`, path: regionPath(town.region) },
+  { name: `${town.county} County`, path: countyPath(town.county) },
+  { name: `${town.name}, NY`, path: `/town/${town.slug}` },
+];
 ---
-<Base title={title} description={description} jsonLd={jsonLd}>
+<Base title={title} description={description} jsonLd={placeLd(town)} crumbs={crumbs}>
   <section class="band">
     <div class="wrap hero-grid town">
         <div>
-          <p class="small" style="margin:0 0 .4rem"><a class="quiet" href="/towns">All towns</a> › <a class="quiet" href={`/towns#${town.region.toLowerCase().replace(/\s+/g, "-")}`}>{town.region}</a> › {town.county} County</p>
+          <p class="small" style="margin:0 0 .4rem"><a class="quiet" href="/towns">All towns</a> › <a class="quiet" href={regionPath(town.region)}>{town.region}</a> › <a class="quiet" href={countyPath(town.county)}>{town.county} County</a></p>
           <h1 style="margin:0">{town.name} <span class="pill">{town.legal_type}</span></h1>
           <p class="muted" style="margin:.5rem 0 .3rem">Population {population(town.pop_latest)} ({town.pop_latest_year}){popText ? ` · ${popText}` : ""} · graded against towns {band(town)}</p>
           <p class="eyebrow" style="margin:0">GEOID {town.geoid} · {town.lat.toFixed(3)}, {town.lon.toFixed(3)}</p>
@@ -90,6 +87,16 @@ const jsonLd = {
       <Figure name="osm_business_count" entry={m("osm_business_count")} note={usable(perK) ? `${formatValue("osm_business_per_1k", perK.value)}` : undefined} />
       <Figure name="permit_units" entry={m("permit_units")} note={usable(permitRate) ? `${formatValue("permits_per_1k", permitRate.value)} a year, 3-yr mean` : undefined} />
     </div>
+
+    <section class="answer">
+      <h2>Is {town.name}, NY a good place to live or invest in?</h2>
+      <p class="lede" style="max-width:none">{summary.join(" ")}</p>
+      <p class="small muted">Written from the figures below, not by hand. {meta.site.SITE_NAME} sells nothing and takes no listings; a grade ranks a town against others of its size, and a momentum label is direction, not a forecast. <a href="/methodology">How the scores work.</a></p>
+      <h3 id="facts">Key facts, each with its period and source</h3>
+      <dl class="facts">
+        {facts.map((f) => <div><dt>{f.label}</dt><dd><span class="mono">{f.value}</span><span class="meta">{f.period} · {f.source}</span></dd></div>)}
+      </dl>
+    </section>
 
     <div class="split">
       <section>

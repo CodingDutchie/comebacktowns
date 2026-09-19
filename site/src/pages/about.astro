@@ -1,9 +1,22 @@
 ---
 import Base from "../layouts/Base.astro";
-import { meta } from "../lib/data";
+import { meta, methodology, momentum, scores } from "../lib/data";
+import { faq, origin, regionNames } from "../lib/seo";
 const site = meta.site;
+const first = Object.values(scores)[0];
+const firstMo = Object.values(momentum)[0];
+const stamp = meta.generated_at.slice(0, 10);
+const questions = [
+  { q: `What is ${site.SITE_NAME}?`, a: `${site.SITE_NAME} is an independent public-data site that scores ${meta.town_count} cities and villages in New York's ${regionNames.join(", ")} for comeback readiness and momentum. It is not affiliated with any municipality, developer or broker, and it takes no listings.` },
+  { q: "What does a readiness grade mean?", a: `Readiness (0 to 100) asks whether the ingredients for a revival are present: ${methodology.factors.map((f) => f.name.replaceAll("_", " ")).join(", ")}. The grade, A to F, ranks a town against others of its population band, so a B in a village and a B in a city mean the same rank, not the same number. A town with too few inputs gets a score but no grade.` },
+  { q: "What does a momentum label mean?", a: `Momentum (0 to 100) asks whether anything is happening now: home values, building permits, population and county tax-filer migration, each judged against a New York benchmark. 50 is keeping pace; ${methodology.momentum.grading.bands.rising} and above is rising, below ${methodology.momentum.grading.bands.steady} is fading. It is direction, not a forecast, and a town needs three of the four inputs to get a label.` },
+  { q: "Which towns are included?", a: `Every incorporated city and village in the ${regionNames.join(", ")} regions as New York's Regional Economic Development Councils draw them, ${meta.town_count} in all. Census-designated places and town-of subdivisions are not in this version.` },
+  { q: "Where does the data come from?", a: "Public sources only: the Census Bureau (ACS 5-year, population estimates, gazetteer, TIGER), the Building Permits Survey, the National Register of Historic Places, Zillow research data, IRS county migration statistics, New York State facility and downtown award lists, OpenStreetMap and OSRM routing. Every figure on every page names the file it came from and the date it was pulled." },
+  { q: "Can I use the data?", a: `Yes. The dataset is licensed CC BY 4.0: use it, including commercially, with attribution to ${site.SITE_NAME}. The underlying sources keep their own terms, listed on the Sources page.` },
+  { q: "How current is it?", a: `Readiness ${first?.config_version ?? ""} was computed ${first?.computed_at.slice(0, 10) ?? ""} and momentum ${firstMo?.config_version ?? ""} on ${firstMo?.computed_at.slice(0, 10) ?? ""}; this build was published ${stamp}. Monthly feeds refresh on the 2nd of the month and annual feeds in January, and the scoring method only changes by publishing a new version.` },
+];
 ---
-<Base title="About" description={`Who makes ${site.SITE_NAME} and how to send a correction.`}>
+<Base title={`About ${site.SITE_NAME}`} description={`Who makes ${site.SITE_NAME}, what the readiness grades and momentum labels mean, which New York towns are included, how to cite the data and how to send a correction.`} jsonLd={faq(questions)} crumbs={[{ name: "About", path: "/about" }]}>
   <div class="wrap">
   <h1>About</h1>
   <p class="lede">{site.SITE_NAME} is a public data site about small New York towns that could be on the way back, built for three readers: people considering a move, small investors, and the officials who run the towns.</p>
@@ -11,6 +24,12 @@ const site = meta.site;
   <p>"This town is turning around, and here is the evidence." Everyone else sells the town. This site also says when one is stalling, and that is only honest if every number carries its source and its date. So they do.</p>
   <h2>Who makes it</h2>
   <p>{site.SITE_NAME} is an independent project. It is not affiliated with any municipality, developer or broker, and it takes no listings.</p>
+  <h2 id="questions">Questions people ask</h2>
+  <dl class="qa">
+    {questions.map((it) => <div><dt>{it.q}</dt><dd>{it.a}</dd></div>)}
+  </dl>
+  <h2 id="cite">How to cite</h2>
+  <p>Name the site, the page and the date, and the version of each score: <span class="mono">{site.SITE_NAME}, {origin}/town/&lt;slug&gt;, readiness {first?.config_version} and momentum {firstMo?.config_version}, published {stamp}.</span> Every town page also lists the exact snapshot key behind each figure, so a figure can be cited to its source file. A machine-readable summary of the site is at <a href="/llms.txt">/llms.txt</a>.</p>
   <h2 id="corrections">Corrections</h2>
   <p>If a figure is wrong, the fastest fix is an email to <a href={`mailto:${site.CONTACT_EMAIL}`}>{site.CONTACT_EMAIL}</a> naming the town, the figure and what it should be, with a source if you have one. Every figure links to the snapshot it came from, so a correction can be traced to the file.</p>
   <h2>What is next</h2>

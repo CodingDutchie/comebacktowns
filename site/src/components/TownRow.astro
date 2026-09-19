@@ -1,0 +1,20 @@
+---
+/** One town as a table row: name, population, grade, readiness, momentum, home value, drive to NYC. */
+import Grade from "./Grade.astro";
+import Momentum from "./Momentum.astro";
+import { metric, momentum, scores, usable, type Town } from "../lib/data";
+import { formatValue, population, score1 } from "../lib/format";
+
+interface Props { town: Town; sub?: string; }
+const { town: t, sub = t.county } = Astro.props;
+const fact = (name: string) => { const e = metric(t.geoid, name); return usable(e) ? formatValue(name, e.value) : "n/a"; };
+---
+<tr>
+  <td><a class="town" href={`/town/${t.slug}`}>{t.name}</a> <span class="sub">{sub}</span></td>
+  <td class="num">{population(t.pop_latest)}</td>
+  <td><Grade grade={scores[t.geoid]?.grade ?? null} /></td>
+  <td class="num">{score1(scores[t.geoid]?.readiness)}</td>
+  <td><Momentum m={momentum[t.geoid]} /></td>
+  <td class="num">{fact("median_home_value")}</td>
+  <td class="num">{fact("drive_min_nyc")}</td>
+</tr>
