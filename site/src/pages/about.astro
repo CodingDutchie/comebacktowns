@@ -13,6 +13,8 @@ const questions = [
   { q: "Which towns are included?", a: `Every incorporated city and village in the ${regionNames.join(", ")} regions as New York's Regional Economic Development Councils draw them, ${meta.town_count} in all. Census-designated places and town-of subdivisions are not in this version.` },
   { q: "Where does the data come from?", a: "Public sources only: the Census Bureau (ACS 5-year, population estimates, gazetteer, TIGER), the Building Permits Survey, the National Register of Historic Places, Zillow research data, IRS county migration statistics, New York State facility and downtown award lists, OpenStreetMap and OSRM routing. Every figure on every page names the file it came from and the date it was pulled." },
   { q: "Can I use the data?", a: `Yes. The dataset is licensed CC BY 4.0: use it, including commercially, with attribution to ${site.SITE_NAME}. The underlying sources keep their own terms, listed on the Sources page.` },
+  { q: "Is this advice?", a: `No. ${site.SITE_NAME} describes places from public data. It is not financial, investment, real-estate, legal or relocation advice, and a grade or label is not a recommendation to buy, sell, move or stay. Check the cited source before acting on any figure.` },
+  { q: "Does the site track me?", a: `No. There are no analytics, no cookies and no sign-up. The site is served by Cloudflare, which keeps ordinary request logs; the only data it holds about a person is a correction email someone chooses to send.` },
   { q: "How current is it?", a: `Readiness ${first?.config_version ?? ""} was computed ${first?.computed_at.slice(0, 10) ?? ""} and momentum ${firstMo?.config_version ?? ""} on ${firstMo?.computed_at.slice(0, 10) ?? ""}; this build was published ${stamp}. Monthly feeds refresh on the 2nd of the month and annual feeds in January, and the scoring method only changes by publishing a new version.` },
 ];
 ---
@@ -30,6 +32,14 @@ const questions = [
   </dl>
   <h2 id="cite">How to cite</h2>
   <p>Name the site, the page and the date, and the version of each score: <span class="mono">{site.SITE_NAME}, {origin}/town/&lt;slug&gt;, readiness {first?.config_version} and momentum {firstMo?.config_version}, published {stamp}.</span> Every town page also lists the exact snapshot key behind each figure, so a figure can be cited to its source file. A machine-readable summary of the site is at <a href="/llms.txt">/llms.txt</a>.</p>
+  <h2 id="not">What this site is not</h2>
+  <ul class="plain-list">
+    <li><strong>Not advice.</strong> Nothing here is financial, investment, real-estate, legal or relocation advice. A readiness grade says the ingredients for a revival are present; a momentum label says which way four public series moved against a New York benchmark over the period shown. Neither is a recommendation to buy, sell, move or stay, and neither is a forecast.</li>
+    <li><strong>Not guaranteed.</strong> The data is provided as is. It comes from public sources that contain errors, from survey estimates with margins of error (shown wherever they exist), and from pages the pipeline reads automatically. Check the cited source before acting on a figure, and <a href="#corrections">tell us</a> when one is wrong.</li>
+    <li><strong>Not about who should live where.</strong> The scores describe places, never the people who should live in them. Inputs such as the share of residents under 18 or the poverty rate are population statistics from the Census Bureau, used as they are published; nothing on this site may be used to steer a buyer or renter towards or away from a place on the basis of any protected characteristic.</li>
+    <li><strong>Not endorsed by its sources.</strong> The Census Bureau, Zillow, the MTA, the IRS, New York State, OpenStreetMap and the other publishers listed on <a href="/sources">Sources</a> supply the inputs. None of them review, endorse or are affiliated with this site, and their names appear only to say where a figure came from.</li>
+    <li><strong>Not tracking you.</strong> No analytics, no cookies, no sign-up. The host keeps ordinary request logs; the only data about a person this project holds is a correction email someone chooses to send.</li>
+  </ul>
   <h2 id="corrections">Corrections</h2>
   <p>If a figure is wrong, the fastest fix is an email to <a href={`mailto:${site.CONTACT_EMAIL}`}>{site.CONTACT_EMAIL}</a> naming the town, the figure and what it should be, with a source if you have one. Every figure links to the snapshot it came from, so a correction can be traced to the file.</p>
   <h2>What is next</h2>

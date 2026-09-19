@@ -223,7 +223,7 @@ export const factorBlurbs: Record<string, string> = {
   building_stock: "Whether there is a pre-war fabric worth restoring.",
   main_street: "How much storefront activity already exists per resident.",
   price_headroom: "Whether prices leave room to rise without having already been found.",
-  services: "Broadband, families with children, and a hospital within reach.",
+  services: "Broadband, the share of residents under 18, and a hospital within reach.",
   civic_capacity: "Whether the state has backed the downtown with a revitalization award.",
   prices: "Whether home values rose faster over the past year than in the typical New York place.",
   building: "Whether more homes are being permitted than two years ago, per resident.",
