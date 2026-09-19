@@ -79,3 +79,27 @@ def test_make_client_pins_ipv4():
     client = http.make_client()
     pool = client._transport._pool  # type: ignore[attr-defined]
     assert pool._local_address == "0.0.0.0"
+
+
+def test_exists_distinguishes_absent_from_broken():
+    from pipeline.http import exists
+
+    def handler(request):
+        path = request.url.path
+        if path.endswith("/there"):
+            return httpx.Response(200)
+        if path.endswith("/gone"):
+            return httpx.Response(404)
+        if path.endswith("/nohead"):
+            # a server that refuses HEAD: the fallback GET must be enough
+            return httpx.Response(405 if request.method == "HEAD" else 200, content=b"x")
+        return httpx.Response(500)
+
+    client = httpx.Client(transport=httpx.MockTransport(handler))
+    assert exists(client, "https://x/there")
+    assert not exists(client, "https://x/gone")
+    assert exists(client, "https://x/nohead")
+    import pytest
+
+    with pytest.raises(httpx.HTTPStatusError):
+        exists(client, "https://x/broken")

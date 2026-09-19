@@ -38,6 +38,30 @@ def source(source_id: str) -> dict[str, Any]:
     return entry
 
 
+def extend_years[T](
+    known: list[T],
+    step: Callable[[T], T],
+    present: Callable[[T], bool],
+    ahead: int,
+) -> list[T]:
+    """The years after ``known[-1]`` that ``present`` finds, in order, stopping at the first
+    one that is not there and never looking more than ``ahead`` past the last known year.
+
+    ``config/sources.yml`` names the years a feed must have; publishers add one a year on
+    their own calendar, and this is how the ingest notices without a config edit.
+    """
+    found: list[T] = []
+    if not known or ahead <= 0:
+        return found
+    candidate = known[-1]
+    for _ in range(ahead):
+        candidate = step(candidate)
+        if not present(candidate):
+            break
+        found.append(candidate)
+    return found
+
+
 class Throttle:
     """Keeps at least ``min_interval`` seconds between calls to ``wait()``."""
 

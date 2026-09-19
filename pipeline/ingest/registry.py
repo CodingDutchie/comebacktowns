@@ -41,6 +41,23 @@ FEEDS: dict[str, Fetcher] = {
 }
 
 
+Discoverer = Callable[..., list[int] | list[str]]
+
+# Feeds whose publisher adds a file a year: ``discover`` names the years beyond the config.
+DISCOVERERS: dict[str, Discoverer] = {
+    permits.SOURCE_ID: permits.discover,
+    irs.SOURCE_ID: irs.discover,
+}
+
+
+def discover_new_years(names: list[str] | None = None) -> dict[str, list[str]]:
+    """source id -> newly published years, for the named feeds (default: all that can)."""
+    out: dict[str, list[str]] = {}
+    for name in names or list(DISCOVERERS):
+        out[name] = [str(y) for y in DISCOVERERS[name]()]
+    return out
+
+
 def fetch_one(name: str, as_of: str | date | None, *, store: RawStore | None = None) -> list[str]:
     result = FEEDS[name](as_of, store=store)
     return [result] if isinstance(result, str) else list(result)

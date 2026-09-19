@@ -101,11 +101,36 @@ def test_permits_fetches_each_configured_year(local_store: LocalStore):
 
     def handler(request):
         urls.append(str(request.url))
+        if request.method == "HEAD":  # nothing published beyond the configured years
+            return httpx.Response(404)
         return httpx.Response(200, content=b"Survey,State\nDate,Code\n\n2024,36\n")
 
     keys = permits.fetch("2026-09-18", store=local_store, client=client_for(handler))
     assert len(keys) == 5 and keys[-1] == "raw/permits/2026-09-18/ne2025a.txt"
-    assert urls[0].endswith("/ne2021a.txt") and "Northeast%20Region" in urls[0]
+    gets = [u for u in urls if not u.endswith("/ne2026a.txt")]
+    assert gets[0].endswith("/ne2021a.txt") and "Northeast%20Region" in gets[0]
+    heads = [u for u in urls if u.endswith("/ne2026a.txt")]
+    assert len(heads) == 1  # probed once, then stopped at the first missing year
+
+
+def test_permits_pulls_a_newly_published_year(local_store: LocalStore):
+    def handler(request):
+        year = int(request.url.path[-9:-5])
+        if year > 2026:
+            return httpx.Response(404)
+        return httpx.Response(200, content=b"Survey,State\nDate,Code\n\n2024,36\n")
+
+    assert permits.discover(client_for(handler)) == [2026]
+    keys = permits.fetch("2026-09-18", store=local_store, client=client_for(handler))
+    assert len(keys) == 6 and keys[-1] == "raw/permits/2026-09-18/ne2026a.txt"
+
+
+def test_permits_discovery_does_not_mistake_an_outage_for_an_unreleased_year():
+    def handler(request):
+        return httpx.Response(500) if request.method == "HEAD" else httpx.Response(200)
+
+    with pytest.raises(httpx.HTTPStatusError):
+        permits.discover(httpx.Client(transport=httpx.MockTransport(handler)))
 
 
 def test_nrhp_queries_both_layers_for_ny_districts(local_store: LocalStore):
@@ -271,18 +296,45 @@ def make_zip(files: dict[str, str]) -> bytes:
     return buf.getvalue()
 
 
+IRS_ENTRY = {
+    "url": "https://www.irs.gov/pub/irs-soi/county{flow}{years}.csv",
+    "years": ["2122", "2223"],
+    "flows": ["inflow", "outflow"],
+    "discover_ahead": 2,
+}
+
+
+def test_irs_next_pair_rolls_the_filing_years():
+    assert irs.next_pair("2223") == "2324"
+    assert irs.next_pair("2021") == "2122"
+    assert irs.next_pair("9899") == "9900"
+
+
+def test_irs_pulls_a_new_pair_only_when_both_flows_exist(local_store: LocalStore, monkeypatch):
+    monkeypatch.setattr("pipeline.ingest.irs.source", lambda _id: IRS_ENTRY)
+
+    def handler(request):
+        path = request.url.path
+        if request.method == "HEAD":
+            # 2324 is complete; 2425 has only its inflow file so far
+            return httpx.Response(200 if "2324" in path or "inflow2425" in path else 404)
+        return httpx.Response(200, content=b"y2_statefips,y2_countyfips\n")
+
+    assert irs.discover(client_for(handler)) == ["2324"]
+    keys = irs.fetch("2026-09-19", store=local_store, client=client_for(handler))
+    assert keys[-2:] == [
+        "raw/irs/2026-09-19/countyinflow2324.csv",
+        "raw/irs/2026-09-19/countyoutflow2324.csv",
+    ]
+
+
 def test_irs_fetches_both_flows_for_every_year_pair(local_store: LocalStore, monkeypatch):
-    monkeypatch.setattr(
-        "pipeline.ingest.irs.source",
-        lambda _id: {
-            "url": "https://www.irs.gov/pub/irs-soi/county{flow}{years}.csv",
-            "years": ["2122", "2223"],
-            "flows": ["inflow", "outflow"],
-        },
-    )
+    monkeypatch.setattr("pipeline.ingest.irs.source", lambda _id: IRS_ENTRY)
     urls = []
 
     def handler(request):
+        if request.method == "HEAD":
+            return httpx.Response(404)
         urls.append(str(request.url))
         return httpx.Response(200, content=b"y2_statefips,y2_countyfips\n")
 

@@ -1,0 +1,65 @@
+name: discover-years
+
+# The Building Permits Survey and the IRS migration files gain one year each on their own
+# calendars (spring and late in the year). This probes for years newer than the ones in
+# config/sources.yml, and when one has appeared, pulls that source, revalidates and
+# republishes, exactly like a scheduled refresh. When nothing is new it does nothing.
+on:
+  schedule:
+    - cron: "0 9 3 * *" # 3rd of the month, 09:00 UTC, the day after the monthly refresh
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: discover-years
+  cancel-in-progress: false
+
+jobs:
+  detect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    outputs:
+      sources: ${{ steps.probe.outputs.sources }}
+      years: ${{ steps.probe.outputs.years }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+      - run: uv python install
+      - run: uv sync --all-groups
+      - name: Probe for newly published years (HEAD requests only, nothing written)
+        id: probe
+        run: |
+          set -euo pipefail
+          uv run python -m pipeline.cli discover permits irs | tee found.tsv
+          sources=$(cut -f1 found.tsv | tr '\n' ' ' | sed 's/ $//')
+          years=$(tr '\t' ':' < found.tsv | tr '\n' ' ' | sed 's/ $//')
+          echo "sources=$sources" >> "$GITHUB_OUTPUT"
+          echo "years=$years" >> "$GITHUB_OUTPUT"
+          if [ -z "$sources" ]; then echo "nothing new"; else echo "new: $years"; fi
+  refresh:
+    needs: detect
+    if: needs.detect.outputs.sources != ''
+    uses: ./.github/workflows/refresh.yml
+    with:
+      sources: ${{ needs.detect.outputs.sources }}
+      workflow_name: discover-years
+    secrets: inherit
+  publish:
+    needs: refresh
+    if: needs.refresh.result == 'success'
+    uses: ./.github/workflows/publish.yml
+    secrets: inherit
+  report-failure:
+    needs: [detect, refresh, publish]
+    if: failure()
+    uses: ./.github/workflows/report-failure.yml
+    with:
+      workflow_name: discover-years
+      failed_source: ${{ needs.refresh.outputs.failed_source }}
+      failed_step: ${{ needs.refresh.outputs.failed_step || 'detect' }}
+    secrets: inherit

@@ -32,3 +32,10 @@ def test_momentum_command_shares_the_scoring_options():
 def test_ingest_rejects_unknown_source(monkeypatch, local_store):
     monkeypatch.setattr(cli, "raw_store", lambda: local_store)
     assert cli.main(["ingest", "nonsense"]) == 2
+
+
+def test_discover_prints_only_sources_with_new_years(monkeypatch, capsys):
+    monkeypatch.setattr(cli, "discover_new_years", lambda names: {"permits": ["2026"], "irs": []})
+    assert cli.main(["discover"]) == 0
+    assert capsys.readouterr().out == "permits\t2026\n"
+    assert cli.main(["discover", "zillow"]) == 2

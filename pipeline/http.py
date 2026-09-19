@@ -86,6 +86,29 @@ def get(client: httpx.Client, url: str, **kwargs: Any) -> httpx.Response:
     return response
 
 
+ABSENT_STATUSES = frozenset({403, 404, 410})
+
+
+def exists(client: httpx.Client, url: str, **kwargs: Any) -> bool:
+    """Whether ``url`` is published: HEAD (falling back to a GET that reads no body when a
+    server refuses HEAD), retried like any request. A 404-class status means "not yet";
+    anything else that is not 2xx raises, so an outage never looks like an unreleased file.
+    """
+    describe = redact_url(url)
+    response = with_retry(lambda: client.head(url, **kwargs), describe=describe)
+    if response.status_code == 405:
+
+        def probe() -> httpx.Response:
+            with client.stream("GET", url, **kwargs) as streamed:
+                return streamed
+
+        response = with_retry(probe, describe=describe)
+    if response.status_code in ABSENT_STATUSES:
+        return False
+    response.raise_for_status()
+    return True
+
+
 class HashingReader:
     """A read()-able wrapper over a byte iterator that hashes and counts what passes through.
 
