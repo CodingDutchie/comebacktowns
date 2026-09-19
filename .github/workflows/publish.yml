@@ -66,7 +66,7 @@ jobs:
         run: |
           set -euo pipefail
           domain=$(python3 -c "import yaml; print(yaml.safe_load(open('config/site.yml'))['SITE_DOMAIN'])")
-          for path in / /town/catskill-ny /methodology /api/health; do
+          for path in / /town/catskill-ny /region/hudson-valley /county/greene-county /rankings/most-affordable /methodology /robots.txt /llms.txt /sitemap-index.xml /api/health; do
             code=$(curl -sS -o /dev/null -w "%{http_code}" "https://$domain$path")
             echo "$path -> $code"
             [ "$code" = "200" ] || { echo "::error::https://$domain$path returned $code"; exit 1; }

@@ -5,20 +5,23 @@ import Momentum from "../../components/Momentum.astro";
 import { band, meta, momentum } from "../../lib/data";
 import { population, score1 } from "../../lib/format";
 import { rankings, type Ranking } from "../../lib/rankings";
+import { itemList, year } from "../../lib/seo";
 
 export function getStaticPaths() {
   return rankings.map((r) => ({ params: { ranking: r.slug }, props: { ranking: r } }));
 }
 const { ranking } = Astro.props as { ranking: Ranking };
 const rows = ranking.rows();
-const fmtPrimary = (v: number) =>
-  ranking.slug === "price-headroom" ? `${(v * 100).toFixed(0)}%` : ranking.slug === "value-within-an-hour" ? (Number.isNaN(v) ? "n/a" : `${Math.round(v)} min`) : v.toFixed(1);
+const fmtPrimary = ranking.fmt;
+const title = `${ranking.title} (${year})`;
+const description = `${ranking.description} ${rows.length} of ${meta.town_count} New York towns qualify.`;
+const ld = itemList(`${ranking.title}, ${meta.site.SITE_NAME} ${year}`, rows.map((r) => ({ name: `${r.town.name}, NY`, path: `/town/${r.town.slug}` })), ranking.description);
 ---
-<Base title={ranking.title} description={ranking.description}>
+<Base title={title} description={description} jsonLd={ld} crumbs={[{ name: "Rankings", path: "/rankings" }, { name: ranking.title, path: `/rankings/${ranking.slug}` }]}>
   <div class="wrap">
     <p class="eyebrow" style="margin:0">Ranking</p>
     <h1>{ranking.title}</h1>
-    <p class="lede">{ranking.description}</p>
+    <p class="lede">{ranking.description} Figures as published {meta.generated_at.slice(0, 10)}.</p>
     <p class="chips">{rankings.filter((r) => r.slug !== ranking.slug).map((r) => <a href={`/rankings/${r.slug}`}>{r.title}</a>)}</p>
     <div class="table-wrap">
       <table>

@@ -5,6 +5,7 @@ import Momentum from "../components/Momentum.astro";
 import { meta, methodology, metric, momentum, scores, sources, sourceShort, towns, usable, usingSampleData } from "../lib/data";
 import { formatValue, momentumMeaning, population, score1 } from "../lib/format";
 import { rankings } from "../lib/rankings";
+import { regionPath } from "../lib/seo";
 
 const graded = towns.filter((t) => scores[t.geoid]);
 const top = [...graded].sort((a, b) => scores[b.geoid].readiness - scores[a.geoid].readiness).slice(0, 8);
@@ -20,7 +21,7 @@ const regions = [...new Set(towns.map((t) => t.region))].sort().map((r) => {
 const fmt = (geoid: string, name: string) => { const e = metric(geoid, name); return usable(e) ? formatValue(name, e.value) : "n/a"; };
 ---
 
-<Base>
+<Base description={`Readiness grades and momentum labels for ${meta.town_count} New York cities and villages in the Hudson Valley, Capital Region and Mohawk Valley, from dated public data: the cheapest towns, towns near a train to NYC, rising towns and state downtown award winners.`}>
   <section class="band">
     <div class="wrap hero-grid">
       <div>
@@ -141,7 +142,7 @@ const fmt = (geoid: string, name: string) => { const e = metric(geoid, name); re
         <h2>Browse by region</h2>
         <div class="stack">
           {regions.map((r) => (
-            <a class="card link region" href={`/towns#${r.name.toLowerCase().replace(/\s+/g, "-")}`}>
+            <a class="card link region" href={regionPath(r.name)}>
               <span class="stack" style="gap:.1rem"><span class="title">{r.name}</span><span class="muted small">{r.best.map((t) => t.name).join(", ")}…</span></span>
               <span class="count">{r.count}</span>
             </a>

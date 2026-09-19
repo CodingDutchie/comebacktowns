@@ -11,9 +11,16 @@ const steadyAt = mo.grading.bands.steady;
 const scoredInputs = mo.factors.flatMap((f) => f.inputs.filter((i) => !i.context_only)).length;
 const neededInputs = Math.ceil(mo.min_coverage * scoredInputs);
 const jsonLd = {
-  "@context": "https://schema.org",
   "@type": "Dataset",
-  name: `${site.SITE_NAME} readiness dataset`,
+  "@id": new URL("/methodology#dataset", Astro.site).toString(),
+  name: `${site.SITE_NAME} readiness and momentum dataset: ${meta.town_count} New York towns`,
+  alternateName: `${site.SITE_NAME} dataset`,
+  keywords: ["New York towns", "Hudson Valley", "Capital Region", "Mohawk Valley", "readiness score", "momentum", "revitalization", "home values", "building permits", "population change", "county migration", "Downtown Revitalization Initiative"],
+  version: `readiness ${methodology.version}, momentum ${mo.version}`,
+  temporalCoverage: `2019/${meta.generated_at.slice(0, 4)}`,
+  isAccessibleForFree: true,
+  measurementTechnique: "Each metric is taken from a named public file, kept with its period and margin of error; ACS ratios use the Census proportion formula and are suppressed when the margin of error exceeds 40% of the estimate. Readiness is a weighted sum of six factor means; momentum is each change judged against a New York benchmark.",
+  variableMeasured: Object.entries(methodology.metrics).map(([name, m]) => ({ "@type": "PropertyValue", name: m.label, alternateName: name, description: m.description })),
   description: `Readiness scores, grades, momentum scores and labels, and every input metric with source and as-of date for ${meta.town_count} New York cities and villages.`,
   url: new URL("/methodology", Astro.site).toString(),
   license: "https://creativecommons.org/licenses/by/4.0/",
@@ -24,7 +31,7 @@ const jsonLd = {
   isBasedOn: sources.map((s) => s.url).filter(Boolean),
 };
 ---
-<Base title="Methodology" description="How the readiness and momentum scores work: weights, every curve, labels, suppression rules and the dataset download." jsonLd={jsonLd}>
+<Base title="Methodology" description={`How the readiness and momentum scores work for ${meta.town_count} New York towns: six weighted factors, every curve, rising and fading labels, the 40% suppression rule, and the CC BY 4.0 dataset download.`} jsonLd={jsonLd} crumbs={[{ name: "Methodology", path: "/methodology" }]}>
   <div class="wrap">
   <h1>Methodology</h1>
   <p class="lede">Readiness asks one question: are the ingredients for a revival present? It is slow-moving and graded A to F. Momentum asks a second: is anything actually happening? It is a score with three labels. This page is written so a town official can argue with either, line by line.</p>

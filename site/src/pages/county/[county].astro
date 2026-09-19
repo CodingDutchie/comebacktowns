@@ -1,0 +1,79 @@
+---
+/**
+ * One page per county: its towns ranked, and the county-level figures every town in it
+ * shares (tax-filer migration is the finest level the IRS publishes).
+ */
+import Base from "../../layouts/Base.astro";
+import Grade from "../../components/Grade.astro";
+import Momentum from "../../components/Momentum.astro";
+import { meta, metric, momentum, scores, sourceShort, towns, usable } from "../../lib/data";
+import { formatValue, population, score1 } from "../../lib/format";
+import { byReadiness, countyNames, countyPath, countySlug, itemList, regionOf, regionPath, year } from "../../lib/seo";
+
+export function getStaticPaths() {
+  return countyNames.map((c) => ({ params: { county: countySlug(c) }, props: { county: c } }));
+}
+const { county } = Astro.props as { county: string };
+const region = regionOf(county);
+const list = byReadiness(towns.filter((t) => t.county === county));
+const first = list[0];
+const m = (name: string) => metric(first.geoid, name);
+const net = m("county_net_migration_rate");
+const netNy = m("county_net_migration_rate_ny_median");
+const inflow = m("county_migration_inflow");
+const outflow = m("county_migration_outflow");
+const countyHome = m("county_median_home_value");
+const rising = list.filter((t) => momentum[t.geoid]?.label === "rising");
+const intro = [
+  `${county} County is in New York's ${region}. ${list.length === 1 ? "One city or village is" : `${list.length} cities and villages are`} in scope on ${meta.site.SITE_NAME}: ${list.map((t) => t.name).join(", ")}.`,
+  first && scores[first.geoid] ? `The highest readiness in the county is ${first.name} (${score1(scores[first.geoid].readiness)}${scores[first.geoid].grade ? `, grade ${scores[first.geoid].grade}` : ""}).` : "",
+  rising.length ? `${rising.length === 1 ? "One town is" : `${rising.length} towns are`} labelled rising: ${rising.map((t) => t.name).join(", ")}.` : "No town in the county carries a rising label right now.",
+  usable(net) ? `Net migration of tax filers was ${formatValue("county_net_migration_rate", net.value)} residents in ${net.period}${usable(netNy) ? ` (the median New York county: ${formatValue("county_net_migration_rate", netNy.value)})` : ""}${usable(inflow) && usable(outflow) ? `, ${population(inflow.value)} moving in and ${population(outflow.value)} moving out` : ""}.` : "",
+  usable(countyHome) ? `The county median home value was ${formatValue("county_median_home_value", countyHome.value)} (ACS ${countyHome.period}).` : "",
+].filter(Boolean).join(" ");
+const title = `${county} County, NY towns: readiness grades and momentum (${year})`;
+const description = `${list.length === 1 ? "The city or village" : `The ${list.length} cities and villages`} of ${county} County, New York, ranked by comeback readiness with momentum labels, home values, drive times and county tax-filer migration, from dated public data.`;
+const ld = itemList(`${county} County towns by readiness, ${meta.site.SITE_NAME} ${year}`, list.map((t) => ({ name: `${t.name}, NY`, path: `/town/${t.slug}` })), description);
+const metricNames: Record<string, string> = {
+  county_net_migration_rate: "County net migration of tax filers, per 1,000",
+  county_migration_inflow: "Tax filers moving into the county",
+  county_migration_outflow: "Tax filers moving out of the county",
+  county_median_home_value: "County median home value",
+};
+const facts = [net, inflow, outflow, countyHome].filter(usable);
+---
+<Base title={title} description={description} jsonLd={ld} crumbs={[{ name: "All towns", path: "/towns" }, { name: `${region} towns`, path: regionPath(region) }, { name: `${county} County`, path: countyPath(county) }]}>
+  <div class="wrap">
+    <p class="eyebrow" style="margin:0"><a href={regionPath(region)}>{region}</a> · county</p>
+    <h1>{county} County towns</h1>
+    <section class="answer" style="margin-top:.5rem">
+      <p class="lede" style="max-width:none">{intro}</p>
+      <p class="small muted">County figures are the finest level their sources publish, so every town in the county carries the same ones. Figures as published {meta.generated_at.slice(0, 10)}. <a href="/methodology">How the scores work.</a></p>
+      {facts.length > 0 && (
+        <dl class="facts">
+          {facts.map((e) => { const name = Object.keys(metricNames).find((k) => metric(first.geoid, k) === e)!; return <div><dt>{metricNames[name]}</dt><dd><span class="mono">{formatValue(name, e.value)}</span><span class="meta">{e.period} · {sourceShort(e.source_id)}</span></dd></div>; })}
+        </dl>
+      )}
+    </section>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Town</th><th>Type</th><th class="num">Pop.</th><th>Grade</th><th class="num">Readiness</th><th>Momentum</th><th class="num">Home value</th><th class="num">To NYC</th></tr></thead>
+        <tbody>
+          {list.map((t) => (
+            <tr>
+              <td><a class="town" href={`/town/${t.slug}`}>{t.name}</a></td>
+              <td class="muted small">{t.legal_type}</td>
+              <td class="num">{population(t.pop_latest)}</td>
+              <td><Grade grade={scores[t.geoid]?.grade ?? null} /></td>
+              <td class="num">{score1(scores[t.geoid]?.readiness)}</td>
+              <td><Momentum m={momentum[t.geoid]} /></td>
+              <td class="num">{usable(metric(t.geoid, "median_home_value")) ? formatValue("median_home_value", metric(t.geoid, "median_home_value")!.value) : "n/a"}</td>
+              <td class="num">{usable(metric(t.geoid, "drive_min_nyc")) ? formatValue("drive_min_nyc", metric(t.geoid, "drive_min_nyc")!.value) : "n/a"}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+    <p class="chips">{countyNames.filter((c) => regionOf(c) === region && c !== county).map((c) => <a href={countyPath(c)}>{c} County</a>)}</p>
+  </div>
+</Base>

@@ -1,18 +1,51 @@
 ---
 import Logo from "../components/Logo.astro";
 import { meta, momentum, scores } from "../lib/data";
+import { breadcrumbs, origin, regionNames, regionPath } from "../lib/seo";
 
 interface Props {
   title?: string;
   description?: string;
-  jsonLd?: Record<string, unknown>;
+  /** Page-specific JSON-LD nodes; they join the site graph (WebSite, Organization, WebPage). */
+  jsonLd?: Record<string, unknown> | Record<string, unknown>[];
+  /** Breadcrumb trail, rendered as BreadcrumbList; the page itself is the last item. */
+  crumbs?: { name: string; path: string }[];
   /** A page-specific social image path; defaults to the site card. */
   image?: string;
+  noindex?: boolean;
 }
 const site = meta.site;
-const { title, description = site.TAGLINE, jsonLd, image = "/social-card.png" } = Astro.props;
+const { title, description = site.TAGLINE, jsonLd, crumbs, image = "/social-card.png", noindex = false } = Astro.props;
 const fullTitle = title ? `${title} · ${site.SITE_NAME}` : `${site.SITE_NAME} — readiness grades and momentum for New York towns`;
 const canonical = new URL(Astro.url.pathname, Astro.site);
+const graph: Record<string, unknown>[] = [
+  { "@type": "WebSite", "@id": `${origin}/#website`, url: `${origin}/`, name: site.SITE_NAME, description: site.TAGLINE, inLanguage: "en-US", publisher: { "@id": `${origin}/#organization` } },
+  {
+    "@type": "Organization",
+    "@id": `${origin}/#organization`,
+    name: site.SITE_NAME,
+    url: `${origin}/`,
+    logo: { "@type": "ImageObject", url: `${origin}/apple-touch-icon.png`, width: 180, height: 180 },
+    email: site.CONTACT_EMAIL,
+    description: `An independent public-data project scoring ${meta.town_count} New York cities and villages for comeback readiness and momentum. Not affiliated with any municipality, developer or broker; no listings.`,
+    areaServed: { "@type": "State", name: "New York" },
+  },
+  {
+    "@type": "WebPage",
+    "@id": canonical.toString(),
+    url: canonical.toString(),
+    name: fullTitle,
+    description,
+    isPartOf: { "@id": `${origin}/#website` },
+    dateModified: meta.generated_at,
+    inLanguage: "en-US",
+    primaryImageOfPage: new URL(image, Astro.site).toString(),
+    ...(crumbs ? { breadcrumb: { "@id": `${canonical}#breadcrumb` } } : {}),
+  },
+  ...(crumbs ? [{ "@id": `${canonical}#breadcrumb`, ...breadcrumbs(crumbs) }] : []),
+  ...(jsonLd ? (Array.isArray(jsonLd) ? jsonLd : [jsonLd]) : []),
+];
+const ld = JSON.stringify({ "@context": "https://schema.org", "@graph": graph });
 const firstScore = Object.values(scores)[0];
 const firstMomentum = Object.values(momentum)[0];
 const stamps = [
@@ -31,6 +64,7 @@ const stamps = [
     <meta name="theme-color" content="#15191e" />
     <title>{fullTitle}</title>
     <meta name="description" content={description} />
+    <meta name="robots" content={noindex ? "noindex, follow" : "index, follow, max-snippet:-1, max-image-preview:large"} />
     <link rel="canonical" href={canonical} />
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
@@ -42,10 +76,16 @@ const stamps = [
     <meta property="og:title" content={fullTitle} />
     <meta property="og:description" content={description} />
     <meta property="og:type" content="website" />
+    <meta property="og:locale" content="en_US" />
     <meta property="og:url" content={canonical} />
     <meta property="og:image" content={new URL(image, Astro.site)} />
+    <meta property="og:image:alt" content={`${site.SITE_NAME}: ${fullTitle}`} />
+    <meta property="og:updated_time" content={meta.generated_at} />
     <meta name="twitter:card" content="summary_large_image" />
-    {jsonLd && <script type="application/ld+json" set:html={JSON.stringify(jsonLd)} />}
+    <meta name="twitter:title" content={fullTitle} />
+    <meta name="twitter:description" content={description} />
+    <meta name="twitter:image" content={new URL(image, Astro.site)} />
+    <script type="application/ld+json" set:html={ld} />
     <style is:global>
       :root {
         --bg: #f5f6f7; --card: #ffffff; --rule: #dde2e8; --rule-soft: #e6eaef; --soft: #eef1f4;
@@ -196,6 +236,17 @@ const stamps = [
       @media (min-width: 48rem) { .two { grid-template-columns: 1fr 1fr; } }
       .split { display: grid; gap: 1.5rem; grid-template-columns: 1fr; align-items: start; }
       @media (min-width: 56rem) { .split { grid-template-columns: 7fr 5fr; } .split.even { grid-template-columns: 8fr 4fr; } }
+      /* the quotable answer block and the dated key facts on town, region and county pages */
+      .answer { margin-top: 1.5rem; }
+      .answer h2 { margin-top: 0; }
+      dl.facts { display: grid; grid-template-columns: repeat(auto-fill, minmax(20rem, 1fr)); gap: 0 2rem; margin: 0; border-top: 1px solid var(--rule); }
+      dl.facts > div { display: flex; justify-content: space-between; gap: 1rem; align-items: flex-start; padding: .45rem 0; border-bottom: 1px solid var(--rule-soft); }
+      dl.facts dt { font-size: .9rem; line-height: 1.35; }
+      dl.facts dd { margin: 0; text-align: right; flex-shrink: 0; }
+      dl.facts dd .meta { display: block; font-size: .75rem; color: var(--muted); white-space: nowrap; }
+      dl.qa > div { padding: .6rem 0; border-bottom: 1px solid var(--rule-soft); }
+      dl.qa dt { font-weight: 600; }
+      dl.qa dd { margin: .2rem 0 0; }
       .chips { display: flex; flex-wrap: wrap; gap: .5rem; }
       .chips a { padding: .45rem .8rem; border: 1px solid var(--rule); border-radius: 999px; font-size: .9rem; color: var(--fg); text-decoration: none; background: var(--card); }
       .chips a:hover { border-color: var(--muted); }
@@ -225,6 +276,7 @@ const stamps = [
     <footer class="site">
       <div class="wrap">
         <span class="mono">{stamps.join(" · ")}</span>
+        <span>{regionNames.map((r, i) => <>{i > 0 && " · "}<a href={regionPath(r)}>{r} towns</a></>)} · <a href="/rankings">rankings</a> · <a href="/llms.txt">llms.txt</a></span>
         <span>Dataset CC BY 4.0 · every figure names its source and date · corrections: <a href={`mailto:${site.CONTACT_EMAIL}`}>{site.CONTACT_EMAIL}</a></span>
       </div>
     </footer>

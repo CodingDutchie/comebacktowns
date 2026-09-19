@@ -1,0 +1,83 @@
+---
+/**
+ * One page per region: every town ranked, the questions people search for (cheapest,
+ * closest to the city, near a train, rising), and the counties. The intro paragraph is
+ * written from the data so it can be quoted with its date.
+ */
+import Base from "../../layouts/Base.astro";
+import TownRow from "../../components/TownRow.astro";
+import { meta, metric, momentum, scores, towns, usable } from "../../lib/data";
+import { formatValue, score1 } from "../../lib/format";
+import { byReadiness, countyPath, itemList, regionNames, regionPath, regionSlug, year } from "../../lib/seo";
+
+export function getStaticPaths() {
+  return regionNames.map((r) => ({ params: { region: regionSlug(r) }, props: { region: r } }));
+}
+const { region } = Astro.props as { region: string };
+const list = byReadiness(towns.filter((t) => t.region === region));
+const counties = [...new Set(list.map((t) => t.county))].sort().map((c) => ({ name: c, count: list.filter((t) => t.county === c).length }));
+const grades = ["A", "B", "C", "D", "F"].map((g) => ({ g, n: list.filter((t) => scores[t.geoid]?.grade === g).length })).filter((x) => x.n);
+const labels = ["rising", "steady", "fading"].map((l) => ({ l, n: list.filter((t) => momentum[t.geoid]?.label === l).length }));
+const rising = list.filter((t) => momentum[t.geoid]?.label === "rising").sort((a, b) => momentum[b.geoid].momentum - momentum[a.geoid].momentum);
+const withMetric = (name: string) => list.filter((t) => usable(metric(t.geoid, name))).map((t) => ({ t, v: metric(t.geoid, name)!.value! }));
+const cheapest = withMetric("median_home_value").sort((a, b) => a.v - b.v).slice(0, 6);
+const dearest = withMetric("median_home_value").sort((a, b) => b.v - a.v)[0];
+const nearestNyc = withMetric("drive_min_nyc").sort((a, b) => a.v - b.v).slice(0, 6);
+const byTrain = list
+  .filter((t) => { const r = metric(t.geoid, "miles_to_rail_station"); const n = metric(t.geoid, "drive_min_nyc"); return usable(r) && r.value <= 2 && usable(n); })
+  .sort((a, b) => metric(a.geoid, "drive_min_nyc")!.value! - metric(b.geoid, "drive_min_nyc")!.value!)
+  .slice(0, 6);
+const best = list[0];
+const strongest = [...list].filter((t) => momentum[t.geoid]).sort((a, b) => momentum[b.geoid].momentum - momentum[a.geoid].momentum)[0];
+const homePeriod = cheapest[0] ? metric(cheapest[0].t.geoid, "median_home_value")!.period : "";
+const intro = [
+  `The ${region} has ${list.length} cities and villages in scope on ${meta.site.SITE_NAME}, across ${counties.length} counties (${counties.map((c) => c.name).join(", ")}).`,
+  grades.length ? `By readiness grade, ${grades.map((x) => `${x.n} are ${x.g}`).join(", ")}; by momentum, ${labels.map((x) => `${x.n} ${x.l}`).join(", ")}.` : "",
+  best && scores[best.geoid] ? `The highest readiness is ${best.name} (${score1(scores[best.geoid].readiness)}${scores[best.geoid].grade ? `, grade ${scores[best.geoid].grade}` : ""})` : "",
+  strongest ? `${best ? "and the strongest momentum is" : "The strongest momentum is"} ${strongest.name} (${score1(momentum[strongest.geoid].momentum)}${momentum[strongest.geoid].label ? `, ${momentum[strongest.geoid].label}` : ""}).` : ".",
+  cheapest[0] && dearest ? `Median home values (ACS ${homePeriod}) run from ${formatValue("median_home_value", cheapest[0].v)} in ${cheapest[0].t.name} to ${formatValue("median_home_value", dearest.v)} in ${dearest.t.name}.` : "",
+].filter(Boolean).join(" ").replace(/\) \./g, ").");
+const title = `${region} towns ranked by readiness and momentum (${year})`;
+const description = `All ${list.length} ${region} cities and villages with a readiness grade and momentum label from public data: the cheapest towns, the closest to New York City, towns near a train, rising towns, and every county.`;
+const ld = itemList(`${region} towns by readiness, ${meta.site.SITE_NAME} ${year}`, list.map((t) => ({ name: `${t.name}, NY`, path: `/town/${t.slug}` })), description);
+---
+<Base title={title} description={description} jsonLd={ld} crumbs={[{ name: "All towns", path: "/towns" }, { name: `${region} towns`, path: regionPath(region) }]}>
+  <div class="wrap">
+    <p class="eyebrow" style="margin:0">Region{regionNames.filter((r) => r !== region).map((r) => <> · <a href={regionPath(r)}>{r}</a></>)}</p>
+    <h1>{region} towns, ranked</h1>
+    <section class="answer" style="margin-top:.5rem">
+      <p class="lede" style="max-width:none">{intro}</p>
+      <p class="small muted">Readiness asks whether the ingredients for a revival are present; momentum asks whether anything is happening now. Grades are curved within population band, labels are absolute. Figures as published {meta.generated_at.slice(0, 10)}. <a href="/methodology">How the scores work.</a></p>
+    </section>
+    <p class="chips">{counties.map((c) => <a href={countyPath(c.name)}>{c.name} County · {c.count}</a>)}</p>
+
+    <div class="split even">
+      <section>
+        <h2>Cheapest {region} towns</h2>
+        <p class="small muted">Lowest median home value, ACS 5-year {homePeriod}. <a href="/rankings/most-affordable">All towns by price →</a></p>
+        <div class="table-wrap"><table><thead><tr><th>Town</th><th class="num">Pop.</th><th>Grade</th><th class="num">Readiness</th><th>Momentum</th><th class="num">Home value</th><th class="num">To NYC</th></tr></thead><tbody>{cheapest.map((x) => <TownRow town={x.t} />)}</tbody></table></div>
+      </section>
+      <section>
+        <h2>Closest to New York City</h2>
+        <p class="small muted">Shortest drive by road, OSRM routing. <a href="/rankings/value-within-an-hour">Best value within an hour →</a></p>
+        <div class="table-wrap"><table><thead><tr><th>Town</th><th class="num">Pop.</th><th>Grade</th><th class="num">Readiness</th><th>Momentum</th><th class="num">Home value</th><th class="num">To NYC</th></tr></thead><tbody>{nearestNyc.map((x) => <TownRow town={x.t} />)}</tbody></table></div>
+      </section>
+    </div>
+    <div class="split even">
+      <section>
+        <h2>{region} towns near a train</h2>
+        <p class="small muted">Within two miles of an Amtrak or Metro-North station, nearest the city first. <a href="/rankings/near-a-train">All towns near a train →</a></p>
+        {byTrain.length ? <div class="table-wrap"><table><thead><tr><th>Town</th><th class="num">Pop.</th><th>Grade</th><th class="num">Readiness</th><th>Momentum</th><th class="num">Home value</th><th class="num">To NYC</th></tr></thead><tbody>{byTrain.map((t) => <TownRow town={t} />)}</tbody></table></div> : <p class="notice">No town in this region is within two miles of a station in our list.</p>}
+      </section>
+      <section>
+        <h2>Rising in the {region}</h2>
+        <p class="small muted">Momentum {momentum[rising[0]?.geoid]?.config_version ?? ""}: home values, permits, population and county migration against New York benchmarks. <a href="/rankings/strongest-momentum">All rising towns →</a></p>
+        {rising.length ? <div class="table-wrap"><table><thead><tr><th>Town</th><th class="num">Pop.</th><th>Grade</th><th class="num">Readiness</th><th>Momentum</th><th class="num">Home value</th><th class="num">To NYC</th></tr></thead><tbody>{rising.slice(0, 6).map((t) => <TownRow town={t} />)}</tbody></table></div> : <p class="notice">No town in this region carries a rising label right now.</p>}
+      </section>
+    </div>
+
+    <h2>Every {region} town by readiness</h2>
+    <div class="table-wrap"><table><thead><tr><th>Town</th><th class="num">Pop.</th><th>Grade</th><th class="num">Readiness</th><th>Momentum</th><th class="num">Home value</th><th class="num">To NYC</th></tr></thead><tbody>{list.map((t) => <TownRow town={t} />)}</tbody></table></div>
+    <p class="muted small">{list.length} towns. Grades rank a town against others of its population band, so a B in a village and a B in a city mean the same rank, not the same number. <a href="/compare">Compare any three.</a></p>
+  </div>
+</Base>
