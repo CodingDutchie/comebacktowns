@@ -1,36 +1,42 @@
 ---
 import Base from "../layouts/Base.astro";
 import Grade from "../components/Grade.astro";
-import { scores, towns } from "../lib/data";
+import Momentum from "../components/Momentum.astro";
+import { momentum, scores, towns } from "../lib/data";
 import { population, score1 } from "../lib/format";
 
 const byRegion = new Map<string, typeof towns>();
 for (const t of [...towns].sort((a, b) => a.name.localeCompare(b.name))) {
   byRegion.set(t.region, [...(byRegion.get(t.region) ?? []), t]);
 }
+const anchor = (region: string) => region.toLowerCase().replace(/\s+/g, "-");
 ---
-<Base title="All towns" description="Every city and village in scope, by region.">
-  <h1>All towns</h1>
-  <p class="lede">{towns.length} cities and villages, grouped by region. Search results land here when a name does not match exactly.</p>
-  {[...byRegion.entries()].sort().map(([region, list]) => (
-    <section>
-      <h2>{region}</h2>
-      <div class="table-wrap">
-        <table>
-          <thead><tr><th>Town</th><th>County</th><th class="num">Population</th><th>Grade</th><th class="num">Readiness</th></tr></thead>
-          <tbody>
-            {list.map((t) => (
-              <tr>
-                <td><a href={`/town/${t.slug}`}>{t.name}</a> <span class="muted small">{t.legal_type}</span></td>
-                <td>{t.county}</td>
-                <td class="num">{population(t.pop_latest)}</td>
-                <td><Grade grade={scores[t.geoid]?.grade ?? null} /></td>
-                <td class="num">{score1(scores[t.geoid]?.readiness)}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </section>
-  ))}
+<Base title="All towns" description="Every city and village in scope, by region, with grade and momentum.">
+  <div class="wrap">
+    <h1>All towns</h1>
+    <p class="lede">{towns.length} cities and villages, grouped by region. Search results land here when a name does not match exactly.</p>
+    <p class="chips">{[...byRegion.keys()].sort().map((r) => <a href={`#${anchor(r)}`}>{r} · {byRegion.get(r)!.length}</a>)}</p>
+    {[...byRegion.entries()].sort().map(([region, list]) => (
+      <section>
+        <h2 id={anchor(region)}>{region} <span class="muted" style="font-weight:400">· {list.length}</span></h2>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Town</th><th>County</th><th class="num">Population</th><th>Grade</th><th class="num">Readiness</th><th>Momentum</th></tr></thead>
+            <tbody>
+              {list.map((t) => (
+                <tr>
+                  <td><a class="town" href={`/town/${t.slug}`}>{t.name}</a> <span class="sub">{t.legal_type}</span></td>
+                  <td>{t.county}</td>
+                  <td class="num">{population(t.pop_latest)}</td>
+                  <td><Grade grade={scores[t.geoid]?.grade ?? null} /></td>
+                  <td class="num">{score1(scores[t.geoid]?.readiness)}</td>
+                  <td><Momentum m={momentum[t.geoid]} /></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </section>
+    ))}
+  </div>
 </Base>

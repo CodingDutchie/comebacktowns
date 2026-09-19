@@ -4,6 +4,7 @@ import { meta } from "../lib/data";
 const site = meta.site;
 ---
 <Base title="About" description={`Who makes ${site.SITE_NAME} and how to send a correction.`}>
+  <div class="wrap">
   <h1>About</h1>
   <p class="lede">{site.SITE_NAME} is a public data site about small New York towns that could be on the way back, built for three readers: people considering a move, small investors, and the officials who run the towns.</p>
   <h2>The claim</h2>
@@ -14,4 +15,5 @@ const site = meta.site;
   <p>If a figure is wrong, the fastest fix is an email to <a href={`mailto:${site.CONTACT_EMAIL}`}>{site.CONTACT_EMAIL}</a> naming the town, the figure and what it should be, with a source if you have one. Every figure links to the snapshot it came from, so a correction can be traced to the file.</p>
   <h2>What is next</h2>
   <p>Readiness is the first score. Momentum, whether anything is actually happening, is the second: it reads home values, permits, population and county tax-filer migration, each against a benchmark. Any further input arrives as a new momentum version rather than a silent change.</p>
+  </div>
 </Base>

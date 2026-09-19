@@ -132,6 +132,57 @@ export const usingSampleData = !existsSync(fileURLToPath(new URL("../../data/tow
 export const townBySlug = new Map(towns.map((t) => [t.slug, t]));
 export const sourceById = new Map(sources.map((s) => [s.id, s]));
 
+/** Short names for the source strip and figure captions; the full names live on /sources. */
+export const sourceShortNames: Record<string, string> = {
+  gazetteer: "Census Gazetteer",
+  popest: "Census Population Estimates",
+  tiger: "Census TIGERweb",
+  acs: "ACS 5-year",
+  permits: "Building Permits Survey",
+  nrhp: "National Register",
+  rail: "Amtrak · MTA",
+  hospitals: "NYS Dept. of Health",
+  osrm: "OSRM over OpenStreetMap",
+  zillow: "Zillow Research",
+  dri: "DRI · NY Forward",
+  osm: "OpenStreetMap",
+  irs: "IRS Statistics of Income",
+};
+
+export function sourceShort(id: string): string {
+  return sourceShortNames[id] ?? sourceById.get(id)?.name ?? id;
+}
+
+/** Compact input names for the one-line factor summaries on town pages. */
+export const shortLabels: Record<string, string> = {
+  drive_min_nyc: "NYC",
+  drive_min_regional_hub: "hub",
+  miles_to_rail_station: "rail",
+  pre1940_share: "pre-1940",
+  has_nrhp_district: "historic district",
+  osm_business_per_1k: "businesses",
+  median_home_value: "price vs metro",
+  broadband_subscription_share: "broadband",
+  under_18_share: "under 18",
+  hospital_within_20min: "hospital within 20 min",
+  dri_award_amount: "award",
+  dri_award_year: "awarded",
+  zhvi_change_1y: "home values",
+  permit_rate_change: "permit rate",
+  population_change: "population",
+  county_net_migration_rate: "county filers",
+};
+
+/** Position of a town's readiness within its population band: 1 is the best. */
+export function bandRank(town: Town): { position: number; size: number } | null {
+  const s = scores[town.geoid];
+  if (!s) return null;
+  const key = bandKey(town);
+  const peers = towns.filter((t) => bandKey(t) === key && scores[t.geoid]);
+  const position = peers.filter((t) => scores[t.geoid].readiness > s.readiness).length + 1;
+  return { position, size: peers.length };
+}
+
 export function metric(geoid: string, name: string): MetricEntry | undefined {
   return metrics[geoid]?.[name];
 }

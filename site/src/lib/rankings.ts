@@ -13,6 +13,8 @@ export interface Ranking {
   slug: string;
   title: string;
   description: string;
+  /** One sentence for the home page cards. */
+  question: string;
   primaryLabel: string;
   rows: () => RankingRow[];
 }
@@ -37,6 +39,7 @@ export const rankings: Ranking[] = [
   {
     slug: "highest-readiness",
     title: "Highest readiness",
+    question: "Every town by readiness, with grades curved within population band.",
     description: "Every scored town by readiness. Grades are curved within population band, so a B in a village and a B in a city mean the same rank, not the same number.",
     primaryLabel: "Readiness",
     rows: () =>
@@ -48,6 +51,7 @@ export const rankings: Ranking[] = [
   {
     slug: "strongest-momentum",
     title: "Strongest momentum",
+    question: "Where something is happening now, whatever the grade.",
     description: "Every town with a momentum label, by momentum score: home values and population against the typical New York place, county tax-filer migration against the typical New York county, and the change in the town's own permit rate. 50 is keeping pace; 60 and above is rising, below 40 is fading.",
     primaryLabel: "Momentum",
     rows: () =>
@@ -67,6 +71,7 @@ export const rankings: Ranking[] = [
   {
     slug: "price-headroom",
     title: "Best price headroom",
+    question: "Priced near 60% of the metro median: room to rise, not yet found.",
     description: "Towns whose home prices sit near 60% of their metro median: cheap enough to have room, not so cheap that nobody is buying. Ranked by the price-headroom factor, then readiness.",
     primaryLabel: "Price ratio to metro",
     rows: () =>
@@ -79,6 +84,7 @@ export const rankings: Ranking[] = [
   {
     slug: "value-within-an-hour",
     title: "Best value within an hour of a city",
+    question: "Under 60 minutes to New York City or a regional hub, by price headroom.",
     description: "Towns within a 60-minute drive of New York City or a regional hub, ranked by price headroom and then readiness.",
     primaryLabel: "Minutes to nearest hub",
     rows: () =>

@@ -6,6 +6,7 @@ const readinessFactors = methodology.factors.map((f) => f.name);
 const momentumFactors = methodology.momentum.factors.map((f) => f.name);
 ---
 <Base title="Compare towns" description="Compare up to three New York towns side by side.">
+  <div class="wrap">
   <h1>Compare towns</h1>
   <p class="lede">Pick up to three towns. The table reads the <code>towns=</code> part of the address, so a comparison can be shared as a link.</p>
   <form class="search" method="get" action="/compare" id="cmp">
@@ -56,4 +57,5 @@ const momentumFactors = methodology.momentum.factors.map((f) => f.name);
       });
     }
   </script>
+  </div>
 </Base>
