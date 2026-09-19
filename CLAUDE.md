@@ -215,8 +215,20 @@ applied with wrangler), `site/` (Astro 5, static), `worker/` (Phase 5 API), `tes
   input, the owner chose on 2026-09-19 to leave crime out (village-scale counts are too
   noisy and agency coverage too patchy), and the site says so rather than letting a grade be
   read as safety. The disclaimers live in one place, `/about#not` (not advice, as is, not a
-  safety rating, not about who should live where, not endorsed by sources, no tracking), linked from the footer, every town
-  page's summary and `llms.txt`; the services blurb names the metric, not a group of people.
+  safety rating, not about who should live where, not endorsed by sources, no tracking),
+  linked from the footer, every town page's summary and `llms.txt`; the services blurb names
+  the metric, not a group of people.
 - **Snapshot resolution.** Each transform reads the latest snapshot of its own source on or
   before the run date and stamps rows with that date, so a monthly run re-pulls only the
   monthly feeds and every other figure keeps citing its most recent pull.
+
+## Reporting to the portfolio dashboard
+
+At the end of a working session that shipped something, report what actually
+landed and what is next — use the `portfolio-report` skill in `.claude/skills/`.
+Report outcomes, not intentions, and do not report a stage: the dashboard infers
+that from commits, traffic and uptime.
+
+A Stop hook asks for this automatically when a session has committed and not
+reported, and goes quiet once it has. Both are inert without `INGEST_TOKEN` and
+the two `CF_ACCESS_*` variables, so a machine without them never sees a prompt.
