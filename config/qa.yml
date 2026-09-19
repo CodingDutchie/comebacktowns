@@ -49,7 +49,4 @@ bounds:
 coverage:
   min_share: 0.85
   conditional_inputs: [dri_award_year]
-  # scoring.v1.yml names an input that no open source provides at a speed tier; the honest
-  # measurable is the ACS subscription share, so the coverage gate reads it under that name.
-  input_aliases:
-    broadband_100_share: broadband_subscription_share
+  input_aliases: {}

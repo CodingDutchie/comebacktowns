@@ -49,10 +49,6 @@ broadband_subscription_share:
   label: Broadband subscription
   format: percent
   description: Households with a cable, fiber-optic or DSL subscription (ACS 5-year, B28002). Not a speed measure.
-broadband_100_share:
-  label: Broadband subscription
-  format: percent
-  description: Households with a cable, fiber-optic or DSL subscription (ACS 5-year, B28002). Not a speed measure.
 poverty_rate:
   label: Poverty rate
   format: percent

@@ -1,14 +1,15 @@
 # Readiness scoring, version 1. Never edit in place once published: a change in weights or
 # curves is a new file (scoring.v2.yml) and a note in the PR explaining what moved and why.
 # Pre-publication change (Phase 2 PR): services used school_enrollment_trend, which the 40%
-# MOE rule suppresses for 145 of 148 towns; the owner swapped it for under_18_share.
+# MOE rule suppresses for 145 of 148 towns; the owner swapped it for under_18_share, and
+# broadband_100_share was renamed broadband_subscription_share to say what the data is.
 version: v1
 factors:
   access:         {weight: 0.25, inputs: [drive_min_nyc, drive_min_regional_hub, miles_to_rail_station]}
   building_stock: {weight: 0.15, inputs: [pre1940_share, has_nrhp_district]}
   main_street:    {weight: 0.15, inputs: [osm_business_per_1k]}
   price_headroom: {weight: 0.15, inputs: [median_home_value, metro_median_home_value]}
-  services:       {weight: 0.15, inputs: [broadband_100_share, under_18_share, hospital_within_20min]}
+  services:       {weight: 0.15, inputs: [broadband_subscription_share, under_18_share, hospital_within_20min]}
   civic_capacity: {weight: 0.15, inputs: [dri_award_amount, dri_award_year]}
 grading:
   method: curve

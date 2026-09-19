@@ -491,12 +491,14 @@ def test_coverage_gate(ctx):
     report = coverage_report(rows, len(ctx.towns))
     assert (
         report["drive_min_nyc"] == 1.0
-        and report["broadband_100_share"] == 0.25
+        and report["broadband_subscription_share"] == 0.25
         and report["dri_award_year"] == 0.0
     )
     with pytest.raises(QAError) as exc:
         check_coverage(report)
-    assert "dri_award_year" not in str(exc.value) and "broadband_100_share" in str(exc.value)
+    assert "dri_award_year" not in str(exc.value) and "broadband_subscription_share" in str(
+        exc.value
+    )
 
 
 def test_latest_snapshot_resolves_on_or_before_as_of(
