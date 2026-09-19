@@ -204,6 +204,9 @@ applied with wrangler), `site/` (Astro 5, static), `worker/` (Phase 5 API), `tes
   `llms.txt` and `llms-full.txt`, and sitemap `lastmod` from the export stamp. Every
   sentence is built from the data with its period, never written by hand, so it stays true
   on every publish. Nothing claims what the data cannot show (no crime, no schools rating).
+  The disclaimers live in one place, `/about#not` (not advice, as is, not about who should
+  live where, not endorsed by sources, no tracking), linked from the footer, every town
+  page's summary and `llms.txt`; the services blurb names the metric, not a group of people.
 - **Snapshot resolution.** Each transform reads the latest snapshot of its own source on or
   before the run date and stamps rows with that date, so a monthly run re-pulls only the
   monthly feeds and every other figure keeps citing its most recent pull.

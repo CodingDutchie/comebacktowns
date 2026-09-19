@@ -244,6 +244,8 @@ const stamps = [
       dl.facts dt { font-size: .9rem; line-height: 1.35; }
       dl.facts dd { margin: 0; text-align: right; flex-shrink: 0; }
       dl.facts dd .meta { display: block; font-size: .75rem; color: var(--muted); white-space: nowrap; }
+      ul.plain-list { list-style: none; padding: 0; margin: 0; }
+      ul.plain-list li { padding: .5rem 0; border-bottom: 1px solid var(--rule-soft); }
       dl.qa > div { padding: .6rem 0; border-bottom: 1px solid var(--rule-soft); }
       dl.qa dt { font-weight: 600; }
       dl.qa dd { margin: .2rem 0 0; }
@@ -277,7 +279,7 @@ const stamps = [
       <div class="wrap">
         <span class="mono">{stamps.join(" · ")}</span>
         <span>{regionNames.map((r, i) => <>{i > 0 && " · "}<a href={regionPath(r)}>{r} towns</a></>)} · <a href="/rankings">rankings</a> · <a href="/llms.txt">llms.txt</a></span>
-        <span>Dataset CC BY 4.0 · every figure names its source and date · corrections: <a href={`mailto:${site.CONTACT_EMAIL}`}>{site.CONTACT_EMAIL}</a></span>
+        <span>Dataset CC BY 4.0 · every figure names its source and date · <a href="/about#not">not advice</a> · corrections: <a href={`mailto:${site.CONTACT_EMAIL}`}>{site.CONTACT_EMAIL}</a></span>
       </div>
     </footer>
   </body>
