@@ -180,8 +180,11 @@ applied with wrangler), `site/` (Astro 5, static), `worker/` (Phase 5 API), `tes
   index key is `index:v3`.
 - **Design ("Ledger").** Dark slate header and hero bands over a light ledger body, IBM Plex
   Sans for text and IBM Plex Mono for every figure, code and label (Google Fonts, preconnected,
-  `display=swap`); colour tokens and all component CSS live in `site/src/layouts/Base.astro`,
-  with a dark scheme under `prefers-color-scheme`. The mark is the "Return" roofline-arrow
+  `display=swap`); colour tokens and all component CSS live in `site/src/layouts/Base.astro`.
+  The plan's "dark and light" is met by the light ledger alone: the owner chose Ledger for
+  its dark-header-over-light-body contrast, and the system dark preference removed it, so
+  the site does not follow `prefers-color-scheme`; the dark tokens sit behind
+  `:root[data-theme="dark"]` for a future explicit toggle. The mark is the "Return" roofline-arrow
   (`site/src/components/Logo.astro`, `site/public/favicon.svg`); the social card and Apple
   touch icon are rendered from it by `site/scripts/render-images.mjs` with the pre-installed
   Chromium (`CHROMIUM_PATH=/opt/pw-browsers/chromium-*/chrome-linux/chrome`) and committed.
