@@ -27,7 +27,7 @@ const stamps = [
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="color-scheme" content="light dark" />
+    <meta name="color-scheme" content="light" />
     <meta name="theme-color" content="#15191e" />
     <title>{fullTitle}</title>
     <meta name="description" content={description} />
@@ -56,13 +56,14 @@ const stamps = [
         --rising: #1c7c54; --steady: #f2c14e; --steady-fg: #15191e; --fading: #b8322e;
         --mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
         --sans: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
-        color-scheme: light dark;
+        color-scheme: light;
       }
-      @media (prefers-color-scheme: dark) {
-        :root { --bg: #0f1215; --card: #171b20; --rule: #2e3640; --rule-soft: #262d35; --soft: #1f252c;
+      /* The ledger is light by design: a dark header and hero over a light body. The system
+         dark preference is not followed, because it removes that contrast; the dark tokens
+         stay here behind an explicit attribute for a future toggle. */
+      :root[data-theme="dark"] { --bg: #0f1215; --card: #171b20; --rule: #2e3640; --rule-soft: #262d35; --soft: #1f252c;
                 --fg: #f5f6f7; --muted: #9aa4b2; --link: #8ab4ff; --bar: #5b8cff; --bar-m: #3fb37f;
-                --note-bg: #2a2410; --note-fg: #f2d98a; --c: #f2c14e; }
-      }
+                --note-bg: #2a2410; --note-fg: #f2d98a; --c: #f2c14e; color-scheme: dark; }
       * { box-sizing: border-box; }
       html { background: var(--bg); color: var(--fg); font: 16px/1.55 var(--sans); -webkit-text-size-adjust: 100%; }
       body { margin: 0; }
