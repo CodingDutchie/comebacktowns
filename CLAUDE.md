@@ -113,6 +113,14 @@ applied with wrangler), `site/` (Astro 5, static), `worker/` (Phase 5 API), `tes
   sample noise; 85% still catches a feed that drops out).
 - **`transform --allow-low-coverage`** writes rows even when the coverage gate fails; the
   shortfall is printed on every run either way.
+- **Overpass has a fallback server.** The public Overpass servers go through busy spells
+  (the first scheduled refresh, 2026-10-02, died on 504s after 76 minutes of retries). Each
+  OSM query is tried on `url` and then on each `fallback_urls` entry in `config/sources.yml`
+  (`retries_per_server`, `backoff_seconds`), all serving the same OpenStreetMap database:
+  the same source on another machine, which the owner confirmed on 2026-10-05 is not a
+  substitute source. A "runtime error" remark counts as a busy server; a 4xx is a bad query
+  and stops the run. The server that answered is recorded in the document (`server`) and
+  the sidecar.
 - **Outbound HTTP is pinned to IPv4** (`make_client` binds `0.0.0.0`): a GitHub runner
   reached Overpass over IPv6 without a route and the run died with "Network is unreachable".
 - **Scoring (Phase 3).** Weights and grade bands live in `config/scoring.v1.yml`; the curves

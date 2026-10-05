@@ -9,6 +9,7 @@ import pytest
 
 from pipeline.geo import haversine_miles, nearest
 from pipeline.ingest import osm, osrm
+from pipeline.ingest.base import source as real_source
 from pipeline.scope import Town, build_towns
 from pipeline.settings import scope_config
 from pipeline.storage import LocalStore
@@ -175,6 +176,102 @@ def test_osm_fetch_posts_query_and_stores_elements(local_store: LocalStore):
     assert doc["polygon_parts"] == 2 and doc["elements"][0]["tags"]["shop"] == "bakery"
 
 
+OK_PAYLOAD = {
+    "osm3s": {"timestamp_osm_base": "2026-09-01T00:00:00Z"},
+    "elements": [{"type": "node", "id": 1, "tags": {"shop": "bakery"}}],
+}
+
+
+def test_osm_falls_back_to_the_next_server_on_504s(local_store: LocalStore, monkeypatch):
+    local_store.put_bytes("raw/tiger/2026-09-18/places_36.geojson", json.dumps(SQUARE).encode())
+    monkeypatch.setattr(
+        "pipeline.ingest.osm.source",
+        lambda _id: {
+            **real_source("osm"),
+            "url": "https://primary.test/api/interpreter",
+            "fallback_urls": ["https://second.test/api/interpreter"],
+            "retries_per_server": 2,
+            "backoff_seconds": 0,
+        },
+    )
+    hosts = []
+
+    def handler(request):
+        hosts.append(request.url.host)
+        if request.url.host == "primary.test":
+            return httpx.Response(504)
+        return httpx.Response(200, json=OK_PAYLOAD)
+
+    keys = osm.fetch(
+        "2026-09-18",
+        store=local_store,
+        client=httpx.Client(transport=httpx.MockTransport(handler)),
+        towns=[catskill()],
+        sleep=lambda s: None,
+    )
+    assert hosts == ["primary.test", "primary.test", "primary.test", "second.test"]
+    doc = json.loads(local_store.get_bytes(keys[0]))
+    assert doc["server"] == "https://second.test/api/interpreter"
+    assert doc["elements"][0]["tags"]["shop"] == "bakery"
+
+
+def test_osm_busy_remark_moves_to_the_next_server(local_store: LocalStore, monkeypatch):
+    local_store.put_bytes("raw/tiger/2026-09-18/places_36.geojson", json.dumps(SQUARE).encode())
+    monkeypatch.setattr(
+        "pipeline.ingest.osm.source",
+        lambda _id: {
+            **real_source("osm"),
+            "url": "https://primary.test/api/interpreter",
+            "fallback_urls": ["https://second.test/api/interpreter"],
+            "backoff_seconds": 0,
+        },
+    )
+
+    def handler(request):
+        if request.url.host == "primary.test":
+            return httpx.Response(
+                200, json={"remark": 'runtime error: Query timed out in "query"', "elements": []}
+            )
+        return httpx.Response(200, json=OK_PAYLOAD)
+
+    keys = osm.fetch(
+        "2026-09-18",
+        store=local_store,
+        client=httpx.Client(transport=httpx.MockTransport(handler)),
+        towns=[catskill()],
+        sleep=lambda s: None,
+    )
+    assert json.loads(local_store.get_bytes(keys[0]))["server"].startswith("https://second.test")
+
+
+def test_osm_bad_query_does_not_try_other_servers(monkeypatch):
+    monkeypatch.setattr(
+        "pipeline.ingest.osm.source",
+        lambda _id: {"url": "https://primary.test/x", "fallback_urls": ["https://second.test/x"]},
+    )
+    hosts = []
+
+    def handler(request):
+        hosts.append(request.url.host)
+        return httpx.Response(400, text="parse error")
+
+    with pytest.raises(httpx.HTTPStatusError):
+        osm.ask(
+            httpx.Client(transport=httpx.MockTransport(handler)),
+            osm.servers(osm.source("osm")),
+            "bad",
+            "x",
+            retries=0,
+            backoff=0,
+        )
+    assert hosts == ["primary.test"]
+
+
+def test_osm_servers_dedupes_and_keeps_order():
+    assert osm.servers({"url": "a", "fallback_urls": ["b", "a", "c"]}) == ["a", "b", "c"]
+    assert osm.servers({"url": "a"}) == ["a"]
+
+
 def test_osm_runtime_error_remark_raises(local_store: LocalStore):
     local_store.put_bytes("raw/tiger/2026-09-18/places_36.geojson", json.dumps(SQUARE).encode())
 
@@ -191,6 +288,7 @@ def test_osm_runtime_error_remark_raises(local_store: LocalStore):
             towns=[catskill()],
             sleep=lambda s: None,
         )
+    # every server said the same, so the error names the remark and the run stops
 
 
 def test_osm_missing_polygon_fails(local_store: LocalStore, popest_bytes, gazetteer_zip, scope):
