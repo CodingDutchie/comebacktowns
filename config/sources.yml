@@ -132,6 +132,12 @@ osm:
   name: OpenStreetMap via Overpass API
   publisher: OpenStreetMap contributors
   url: https://overpass-api.de/api/interpreter
+  # Same OpenStreetMap database on other public servers, tried in order when the one
+  # above answers 504 or "runtime error" through retries_per_server attempts.
+  fallback_urls:
+    - https://overpass.kumi.systems/api/interpreter
+  retries_per_server: 3
+  backoff_seconds: 15
   min_interval_seconds: 2.0
   simplify_tolerance_deg: 0.0005
   query: |

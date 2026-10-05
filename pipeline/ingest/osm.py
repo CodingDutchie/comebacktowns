@@ -2,6 +2,12 @@
 
 One query per town using the TIGER polygon (simplified), paced politely, stored under
 ``raw/osm/{as_of}/{geoid}.json``; a rerun only fetches towns that are missing.
+
+The public Overpass servers are shared and go through busy spells (504s, "Query timed
+out" remarks). Each query is tried on the configured server, then on each ``fallback_urls``
+entry; all of them serve the same OpenStreetMap database, so this is the same source on
+another machine, never a different source. The server that answered is recorded in the
+stored document and its sidecar.
 """
 
 from __future__ import annotations
@@ -50,6 +56,64 @@ def build_query(template: str, poly: str) -> str:
     return template.replace("{poly}", poly)
 
 
+def servers(entry: dict[str, Any]) -> list[str]:
+    """The configured Overpass server first, then the fallbacks, without duplicates."""
+    out: list[str] = []
+    for url in [entry["url"], *entry.get("fallback_urls", [])]:
+        if url not in out:
+            out.append(url)
+    return out
+
+
+def busy_remark(remark: str) -> bool:
+    """Overpass answers 200 with a ``remark`` when the server, not the query, gave up."""
+    return "runtime error" in remark.lower()
+
+
+def ask(
+    client: httpx.Client,
+    urls: list[str],
+    query: str,
+    slug: str,
+    *,
+    retries: int,
+    backoff: float,
+) -> tuple[dict[str, Any], str]:
+    """POST ``query`` to each server in turn until one answers with elements.
+
+    A retryable status or a transport error exhausts that server's retries and moves on;
+    a non-retryable status (a malformed query) raises at once, since another server would
+    say the same. Returns the payload and the URL that produced it.
+    """
+    last: Exception | None = None
+    for url in urls:
+        host = httpx.URL(url).host
+
+        def post(q: str = query, u: str = url) -> httpx.Response:
+            return client.post(u, data={"data": q})
+
+        try:
+            response = with_retry(
+                post, retries=retries, backoff=backoff, describe=f"overpass {slug} @ {host}"
+            )
+        except (httpx.HTTPStatusError, httpx.TransportError) as exc:
+            last = exc
+            log.warning("osm: %s: %s gave up (%s), trying the next server", slug, host, exc)
+            continue
+        response.raise_for_status()
+        payload: dict[str, Any] = response.json()
+        remark = str(payload.get("remark", ""))
+        if "elements" not in payload or "error" in remark.lower():
+            message = remark or "no elements in response"
+            if busy_remark(remark):
+                last = RuntimeError(f"osm: {slug}: {message}")
+                log.warning("osm: %s: %s said %r, trying the next server", slug, host, message)
+                continue
+            raise RuntimeError(f"osm: {slug}: {message}")
+        return payload, url
+    raise RuntimeError(f"osm: {slug}: every Overpass server failed; last: {last}") from last
+
+
 def fetch(
     as_of: str | date | None = None,
     *,
@@ -81,26 +145,26 @@ def fetch(
             poly, parts = poly_string(polygons[town.geoid], float(entry["simplify_tolerance_deg"]))
             query = build_query(entry["query"], poly)
             throttle.wait()
-
-            def post(q: str = query) -> httpx.Response:
-                return client.post(entry["url"], data={"data": q})
-
-            response = with_retry(post, retries=6, backoff=15.0, describe=f"overpass {town.slug}")
-            response.raise_for_status()
-            payload = response.json()
-            remark = payload.get("remark", "")
-            if "elements" not in payload or "error" in remark.lower():
-                raise RuntimeError(f"osm: {town.slug}: {remark or 'no elements in response'}")
+            payload, url = ask(
+                client,
+                servers(entry),
+                query,
+                town.slug,
+                retries=int(entry.get("retries_per_server", 3)),
+                backoff=float(entry.get("backoff_seconds", 15.0)),
+            )
             document = {
                 "geoid": town.geoid,
                 "slug": town.slug,
                 "polygon_parts": parts,
                 "query": query,
+                "server": url,
                 "osm3s": payload.get("osm3s"),
                 "elements": payload["elements"],
             }
-            put_json(store, key, document, url=entry["url"])
-            log.info("osm: stored %s (%d elements)", key, len(payload["elements"]))
+            put_json(store, key, document, url=url)
+            host = httpx.URL(url).host
+            log.info("osm: stored %s (%d elements, %s)", key, len(payload["elements"]), host)
     finally:
         if own_client:
             client.close()
