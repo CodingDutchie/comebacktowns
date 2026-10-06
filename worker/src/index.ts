@@ -12,10 +12,16 @@
  */
 import { buildIndex, compare, filter, parseFilter, publicTown, search, type MetricRow, type MomentumRow, type ScoreRow, type TownIndex, type TownRow, FACT_METRICS } from "./logic";
 
+// The OSM Workflow (one durable Overpass query per town, ahead of the monthly refresh) is
+// exported from this Worker so it shares the RAW bucket binding; see osm-workflow.ts.
+export { OsmWorkflow } from "./osm-workflow";
+
 export interface Env {
   DB: D1Database;
   CACHE: KVNamespace;
   ASSETS: Fetcher;
+  RAW: R2Bucket;
+  OSM_WORKFLOW: Workflow;
   SITE_ORIGINS: string; // comma-separated allowed origins for CORS
   INDEX_TTL?: string;
 }

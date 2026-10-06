@@ -12,7 +12,7 @@ from pipeline.ingest import osm, osrm
 from pipeline.ingest.base import source as real_source
 from pipeline.scope import Town, build_towns
 from pipeline.settings import scope_config
-from pipeline.storage import LocalStore
+from pipeline.storage import LocalStore, read_meta
 
 HOSPITALS = [
     {"facility_id": "1", "name": "Columbia Memorial", "lat": 42.2506, "lon": -73.7869},
@@ -302,3 +302,34 @@ def test_osm_missing_polygon_fails(local_store: LocalStore, popest_bytes, gazett
             towns=towns,
             sleep=lambda s: None,
         )
+
+
+def test_osm_queries_manifest_carries_the_same_query_fetch_would_send(local_store: LocalStore):
+    local_store.put_bytes("raw/tiger/2026-09-18/places_36.geojson", json.dumps(SQUARE).encode())
+    key = osm.write_queries("2026-09-18", store=local_store, towns=[catskill()])
+    assert key == "raw/osm-queries/2026-09-18/queries.json"
+    manifest = json.loads(local_store.get_bytes(key))
+    assert manifest["as_of"] == "2026-09-18" and manifest["tiger_key"].endswith("places_36.geojson")
+    assert manifest["servers"][0].startswith("https://") and manifest["min_interval_seconds"] == 2.0
+    [town] = manifest["towns"]
+    assert town["geoid"] == "3613002" and town["polygon_parts"] == 2
+    assert 'poly:"42.20000 -73.87000' in town["query"] and "shop" in town["query"]
+    # the sidecar names what it was derived from
+    assert "places_36.geojson" in read_meta(local_store, key)["url"]
+
+    posted = []
+
+    def handler(request):
+        posted.append(request.content.decode())
+        return httpx.Response(200, json=OK_PAYLOAD)
+
+    osm.fetch(
+        "2026-09-18",
+        store=local_store,
+        client=httpx.Client(transport=httpx.MockTransport(handler)),
+        towns=[catskill()],
+        sleep=lambda s: None,
+    )
+    from urllib.parse import parse_qs
+
+    assert parse_qs(posted[0])["data"][0] == town["query"]
