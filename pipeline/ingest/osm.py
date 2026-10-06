@@ -155,7 +155,9 @@ def queries_manifest(
         "as_of": as_of,
         "tiger_key": tiger_key,
         "source_id": SOURCE_ID,
-        "servers": servers(entry),
+        # The Workflow runs on Cloudflare's edge, which some Overpass hosts refuse; it gets
+        # its own list when the config names one, else the same servers Python uses.
+        "servers": [str(u) for u in entry.get("workflow_servers") or servers(entry)],
         "min_interval_seconds": float(entry["min_interval_seconds"]),
         "retries_per_server": int(entry.get("retries_per_server", 3)),
         "backoff_seconds": float(entry.get("backoff_seconds", 15.0)),
