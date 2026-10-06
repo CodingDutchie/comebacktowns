@@ -75,8 +75,13 @@ jobs:
           echo
           token=$(python3 -c "import yaml; print(yaml.safe_load(open('config/site.yml')).get('ANALYTICS_TOKEN') or '')")
           if [ -n "$token" ]; then
-            curl -sS -A "Mozilla/5.0 (smoke check)" "https://$domain/" | grep -q "static.cloudflareinsights.com/beacon.min.js" \
-              || { echo "::error::the Web Analytics beacon is missing from https://$domain/"; exit 1; }
-            echo "Web Analytics beacon present"
+            # A unique query string skips the edge cache, which can still hold the previous deploy for a moment.
+            for attempt in 1 2 3 4 5; do
+              if curl -sS -A "Mozilla/5.0 (smoke check)" "https://$domain/?smoke=$GITHUB_RUN_ID-$attempt" | grep -q "static.cloudflareinsights.com/beacon.min.js"; then
+                echo "Web Analytics beacon present"; break
+              fi
+              [ "$attempt" = 5 ] && { echo "::error::the Web Analytics beacon is missing from https://$domain/"; exit 1; }
+              sleep 10
+            done
           fi
           echo "Data generated: $(python3 -c "import json; print(json.load(open('site/data/meta.json'))['generated_at'])")"
