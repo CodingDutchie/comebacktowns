@@ -75,9 +75,11 @@ jobs:
           echo
           token=$(python3 -c "import yaml; print(yaml.safe_load(open('config/site.yml')).get('ANALYTICS_TOKEN') or '')")
           if [ -n "$token" ]; then
-            # A unique query string skips the edge cache, which can still hold the previous deploy for a moment.
+            # Save the page, then grep it: under pipefail, grep -q closing the pipe makes curl fail (exit 23).
+            # The unique query string skips the edge cache, which can still hold the previous deploy for a moment.
             for attempt in 1 2 3 4 5; do
-              if curl -sS -A "Mozilla/5.0 (smoke check)" "https://$domain/?smoke=$GITHUB_RUN_ID-$attempt" | grep -q "static.cloudflareinsights.com/beacon.min.js"; then
+              curl -sS -A "Mozilla/5.0 (smoke check)" -o "$RUNNER_TEMP/smoke-home.html" "https://$domain/?smoke=$GITHUB_RUN_ID-$attempt"
+              if grep -q "static.cloudflareinsights.com/beacon.min.js" "$RUNNER_TEMP/smoke-home.html"; then
                 echo "Web Analytics beacon present"; break
               fi
               [ "$attempt" = 5 ] && { echo "::error::the Web Analytics beacon is missing from https://$domain/"; exit 1; }
