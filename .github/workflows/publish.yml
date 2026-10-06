@@ -73,4 +73,10 @@ jobs:
           done
           curl -sS "https://$domain/api/health"
           echo
+          token=$(python3 -c "import yaml; print(yaml.safe_load(open('config/site.yml')).get('ANALYTICS_TOKEN') or '')")
+          if [ -n "$token" ]; then
+            curl -sS -A "Mozilla/5.0 (smoke check)" "https://$domain/" | grep -q "static.cloudflareinsights.com/beacon.min.js" \
+              || { echo "::error::the Web Analytics beacon is missing from https://$domain/"; exit 1; }
+            echo "Web Analytics beacon present"
+          fi
           echo "Data generated: $(python3 -c "import json; print(json.load(open('site/data/meta.json'))['generated_at'])")"

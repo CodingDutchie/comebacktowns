@@ -2,6 +2,7 @@
 import Logo from "../components/Logo.astro";
 import { meta, momentum, scores } from "../lib/data";
 import { breadcrumbs, origin, regionNames, regionPath } from "../lib/seo";
+import { site as config } from "../lib/site";
 
 interface Props {
   title?: string;
@@ -15,6 +16,8 @@ interface Props {
   noindex?: boolean;
 }
 const site = meta.site;
+// Read from config/site.yml at build time, not from the export, so a fresh clone without data behaves the same.
+const analyticsToken = (config.ANALYTICS_TOKEN ?? "").trim();
 const { title, description = site.TAGLINE, jsonLd, crumbs, image = "/social-card.png", noindex = false } = Astro.props;
 const fullTitle = title ? `${title} · ${site.SITE_NAME}` : `${site.SITE_NAME} — readiness grades and momentum for New York towns`;
 const canonical = new URL(Astro.url.pathname, Astro.site);
@@ -86,6 +89,7 @@ const stamps = [
     <meta name="twitter:description" content={description} />
     <meta name="twitter:image" content={new URL(image, Astro.site)} />
     <script type="application/ld+json" set:html={ld} />
+    {analyticsToken && <script is:inline defer src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon={JSON.stringify({ token: analyticsToken })} />}
     <style is:global>
       :root {
         --bg: #f5f6f7; --card: #ffffff; --rule: #dde2e8; --rule-soft: #e6eaef; --soft: #eef1f4;

@@ -8,6 +8,8 @@ export interface SiteConfig {
   CONTACT_EMAIL: string;
   TAGLINE: string;
   STATE_ABBR: string;
+  /** Cloudflare Web Analytics site token; blank or absent means no beacon. */
+  ANALYTICS_TOKEN?: string;
 }
 
 /** Brand strings from config/site.yml. Never hardcode these in templates. */
