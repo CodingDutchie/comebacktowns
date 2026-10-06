@@ -310,7 +310,8 @@ def test_osm_queries_manifest_carries_the_same_query_fetch_would_send(local_stor
     assert key == "raw/osm-queries/2026-09-18/queries.json"
     manifest = json.loads(local_store.get_bytes(key))
     assert manifest["as_of"] == "2026-09-18" and manifest["tiger_key"].endswith("places_36.geojson")
-    assert manifest["servers"][0].startswith("https://") and manifest["min_interval_seconds"] == 2.0
+    assert manifest["servers"] == real_source("osm")["workflow_servers"]
+    assert manifest["min_interval_seconds"] == 2.0
     [town] = manifest["towns"]
     assert town["geoid"] == "3613002" and town["polygon_parts"] == 2
     assert 'poly:"42.20000 -73.87000' in town["query"] and "shop" in town["query"]

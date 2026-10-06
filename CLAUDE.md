@@ -133,7 +133,12 @@ applied with wrangler), `site/` (Astro 5, static), `worker/` (Phase 5 API), `tes
   query logic lives in Python only. `refresh-monthly.yml` keeps `osm` in its sources: six
   hours later the Python ingest finds the files present, skips them, and fills any the
   Workflow missed, so neither path depends on the other succeeding. Workers Free covers it
-  (one instance a month, 150 steps). Seed or re-run with `osm-workflow.yml`.
+  (one instance a month, 150 steps). Seed or re-run with `osm-workflow.yml`. The Workflow
+  uses `workflow_servers` from `config/sources.yml`, not the Python list: from Cloudflare's
+  edge `overpass-api.de` refuses connections (HTTP 521) and `overpass.kumi.systems` times
+  out, while `overpass.openstreetmap.fr` and `z.overpass-api.de` answer (probed with a
+  throwaway Worker on 2026-10-06, then deleted). All are mirrors of the same OpenStreetMap
+  database; the document records which one answered.
 - **Outbound HTTP is pinned to IPv4** (`make_client` binds `0.0.0.0`): a GitHub runner
   reached Overpass over IPv6 without a route and the run died with "Network is unreachable".
 - **Scoring (Phase 3).** Weights and grade bands live in `config/scoring.v1.yml`; the curves

@@ -136,6 +136,12 @@ osm:
   # above answers 504 or "runtime error" through retries_per_server attempts.
   fallback_urls:
     - https://overpass.kumi.systems/api/interpreter
+  # The servers the OSM Workflow uses from Cloudflare's edge, in order. overpass-api.de
+  # refuses connections from Workers (HTTP 521) and kumi.systems times out there, while
+  # these mirrors of the same OpenStreetMap database answer (probed 2026-10-06).
+  workflow_servers:
+    - https://overpass.openstreetmap.fr/api/interpreter
+    - https://z.overpass-api.de/api/interpreter
   retries_per_server: 3
   backoff_seconds: 15
   min_interval_seconds: 2.0
