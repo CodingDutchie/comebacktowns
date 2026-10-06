@@ -30,6 +30,10 @@ def test_config_files_load_and_are_consistent():
     site = settings.site_config()
     assert site["SITE_NAME"] == "Comeback Towns"
     assert site["SITE_DOMAIN"] == "comebacktowns.com"  # plural, always
+    token = site.get("ANALYTICS_TOKEN") or ""
+    assert token == "" or re.fullmatch(r"[0-9a-f]{32}", token), (
+        "a Web Analytics site token is 32 hex characters"
+    )
     scoring = settings.scoring_config("v1")
     assert scoring["version"] == "v1"
     assert abs(sum(f["weight"] for f in scoring["factors"].values()) - 1.0) < 1e-9

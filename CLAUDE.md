@@ -241,9 +241,16 @@ applied with wrangler), `site/` (Astro 5, static), `worker/` (Phase 5 API), `tes
   input, the owner chose on 2026-09-19 to leave crime out (village-scale counts are too
   noisy and agency coverage too patchy), and the site says so rather than letting a grade be
   read as safety. The disclaimers live in one place, `/about#not` (not advice, as is, not a
-  safety rating, not about who should live where, not endorsed by sources, no tracking),
+  safety rating, not about who should live where, not endorsed by sources, not tracking you),
   linked from the footer, every town page's summary and `llms.txt`; the services blurb names
   the metric, not a group of people.
+- **Analytics are Cloudflare Web Analytics, by beacon.** `ANALYTICS_TOKEN` in `config/site.yml`
+  (public, it ships in every page) puts the `beacon.min.js` script in `Base.astro`; blank
+  means no beacon. The zone's automatic injection does not reach pages served by the Worker,
+  which is why the dashboard showed no browser traffic for the first two weeks. The beacon
+  sets no cookies, uses no local storage and does not fingerprint visitors, and `/about#not`
+  says exactly that; it never says "no analytics". `publish.yml` fails the smoke check when
+  the token is set and the beacon is missing from the home page.
 - **Snapshot resolution.** Each transform reads the latest snapshot of its own source on or
   before the run date and stamps rows with that date, so a monthly run re-pulls only the
   monthly feeds and every other figure keeps citing its most recent pull.
