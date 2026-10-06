@@ -6,7 +6,8 @@ CONTACT_EMAIL: data@comebacktowns.com
 TAGLINE: Which New York towns are ready for a comeback, and the evidence for it.
 STATE_FIPS: "36"
 STATE_ABBR: NY
-# Cloudflare Web Analytics site token. It is public (it ships in every page's HTML) and
-# only identifies the site to the beacon; blank disables the beacon. The beacon sets no
-# cookies, uses no local storage and does not fingerprint visitors (see /about#not).
-ANALYTICS_TOKEN: 6a85ae2c7bb44882af795cc4e2003cb1
+# Cloudflare Web Analytics site token: the "token" in the dashboard's snippet, not the
+# site tag. It is public (it ships in every page's HTML) and only identifies the site to
+# the beacon; blank disables the beacon. The beacon sets no cookies, uses no local storage
+# and does not fingerprint visitors (see /about#not).
+ANALYTICS_TOKEN: 27ba39fe7c484c7893dec494912f6c01
