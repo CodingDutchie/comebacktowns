@@ -121,6 +121,19 @@ applied with wrangler), `site/` (Astro 5, static), `worker/` (Phase 5 API), `tes
   substitute source. A "runtime error" remark counts as a busy server; a 4xx is a bad query
   and stops the run. The server that answered is recorded in the document (`server`) and
   the sidecar.
+- **The OSM queries run as a Cloudflare Workflow ahead of the refresh.** The 148 Overpass
+  queries were the slow, flaky half-hour of every monthly run, and one GitHub runner
+  shutdown (2026-10-05) killed a whole run mid-way. `worker/src/osm-workflow.ts`
+  (`OsmWorkflow`, binding `OSM_WORKFLOW`, schedule `0 3 2 * *` in `wrangler.toml`) runs
+  each town as one durable step with its own retries, attempt n on server n of the
+  manifest's list, and writes the same document and `.meta.json` sidecar under the same
+  `raw/osm/{as_of}/` keys as the Python ingest (pure logic in `worker/src/osm.ts`, tested).
+  It reads `raw/osm-queries/{as_of}/queries.json`, which `pipeline.cli osm-queries` publishes
+  from the TIGER snapshot (`refresh.yml` does this after every ingest), so the polygon and
+  query logic lives in Python only. `refresh-monthly.yml` keeps `osm` in its sources: six
+  hours later the Python ingest finds the files present, skips them, and fills any the
+  Workflow missed, so neither path depends on the other succeeding. Workers Free covers it
+  (one instance a month, 150 steps). Seed or re-run with `osm-workflow.yml`.
 - **Outbound HTTP is pinned to IPv4** (`make_client` binds `0.0.0.0`): a GitHub runner
   reached Overpass over IPv6 without a route and the run died with "Network is unreachable".
 - **Scoring (Phase 3).** Weights and grade bands live in `config/scoring.v1.yml`; the curves

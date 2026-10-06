@@ -8,6 +8,13 @@ out" remarks). Each query is tried on the configured server, then on each ``fall
 entry; all of them serve the same OpenStreetMap database, so this is the same source on
 another machine, never a different source. The server that answered is recorded in the
 stored document and its sidecar.
+
+The slow, flaky part of a refresh is these 148 queries, so a Cloudflare Workflow
+(``worker/src/osm-workflow.ts``) runs them ahead of the scheduled GitHub run, one durable
+step per town, and stores the same documents under the same keys. It reads the queries
+from the manifest ``write_queries`` publishes (``raw/osm-queries/{as_of}/queries.json``),
+so the polygon and query logic lives here only. ``fetch`` then finds the files present and
+skips them, and fills any the Workflow missed.
 """
 
 from __future__ import annotations
@@ -114,6 +121,69 @@ def ask(
     raise RuntimeError(f"osm: {slug}: every Overpass server failed; last: {last}") from last
 
 
+QUERIES_SOURCE_ID = "osm-queries"
+QUERIES_FILENAME = "queries.json"
+
+
+def town_queries(
+    entry: dict[str, Any], towns: list[Town], polygons: dict[str, Any]
+) -> list[dict[str, Any]]:
+    """One ``{geoid, slug, polygon_parts, query}`` per town, from the TIGER polygons."""
+    missing = [t.slug for t in towns if t.geoid not in polygons]
+    if missing:
+        raise RuntimeError(f"osm: no TIGER polygon for {missing}")
+    out: list[dict[str, Any]] = []
+    for town in towns:
+        poly, parts = poly_string(polygons[town.geoid], float(entry["simplify_tolerance_deg"]))
+        out.append(
+            {
+                "geoid": town.geoid,
+                "slug": town.slug,
+                "polygon_parts": parts,
+                "query": build_query(entry["query"], poly),
+            }
+        )
+    return out
+
+
+def queries_manifest(
+    entry: dict[str, Any], as_of: str, tiger_key: str, towns: list[Town], polygons: dict[str, Any]
+) -> dict[str, Any]:
+    """Everything the Workflow needs to run the queries: servers, pacing, and one query per
+    town. Built here so the Worker carries no copy of the polygon or query logic."""
+    return {
+        "as_of": as_of,
+        "tiger_key": tiger_key,
+        "source_id": SOURCE_ID,
+        "servers": servers(entry),
+        "min_interval_seconds": float(entry["min_interval_seconds"]),
+        "retries_per_server": int(entry.get("retries_per_server", 3)),
+        "backoff_seconds": float(entry.get("backoff_seconds", 15.0)),
+        "towns": town_queries(entry, towns, polygons),
+    }
+
+
+def write_queries(
+    as_of: str | date | None = None,
+    *,
+    store: RawStore | None = None,
+    client: httpx.Client | None = None,
+    towns: list[Town] | None = None,
+) -> str:
+    """Publish the queries manifest for the Workflow under ``raw/osm-queries/{as_of}/``."""
+    entry = source(SOURCE_ID)
+    as_of_str = normalise_as_of(as_of)
+    store = store or raw_store()
+    towns = towns if towns is not None else towns_from_store(store, as_of_str)
+    tiger_key = tiger.fetch(as_of_str, store=store, client=client)[0]
+    polygons = place_polygons(store.get_bytes(tiger_key))
+    manifest = queries_manifest(entry, as_of_str, tiger_key, towns, polygons)
+    key = raw_key(QUERIES_SOURCE_ID, as_of_str, QUERIES_FILENAME)
+    put_json(store, key, manifest, url=f"derived from {tiger_key}")
+    log.info("osm: wrote %s (%d towns)", key, len(manifest["towns"]))
+    return key
+
+
 def fetch(
     as_of: str | date | None = None,
     *,
@@ -128,9 +198,7 @@ def fetch(
     towns = towns if towns is not None else towns_from_store(store, as_of_str)
     tiger_key = tiger.fetch(as_of_str, store=store, client=client)[0]
     polygons = place_polygons(store.get_bytes(tiger_key))
-    missing = [t.slug for t in towns if t.geoid not in polygons]
-    if missing:
-        raise RuntimeError(f"osm: no TIGER polygon for {missing}")
+    planned = {q["geoid"]: q for q in town_queries(entry, towns, polygons)}
     own_client = client is None
     client = client or make_client(timeout=httpx.Timeout(180.0, connect=30.0))
     interval = float(entry["min_interval_seconds"])
@@ -142,8 +210,8 @@ def fetch(
             keys.append(key)
             if store.exists(key):
                 continue
-            poly, parts = poly_string(polygons[town.geoid], float(entry["simplify_tolerance_deg"]))
-            query = build_query(entry["query"], poly)
+            plan = planned[town.geoid]
+            query, parts = str(plan["query"]), int(plan["polygon_parts"])
             throttle.wait()
             payload, url = ask(
                 client,

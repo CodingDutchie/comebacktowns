@@ -38,3 +38,12 @@ bucket_name = "comebacktowns-raw"
 [[kv_namespaces]]
 binding = "CACHE"
 id = "71c980ce6d104bf7be0135c8fd11fa6c"
+
+# The OSM Workflow: the Overpass queries as durable steps with per-step retries, run on the
+# 2nd at 03:00 UTC, six hours before refresh-monthly, which then finds the files present.
+# Manual run: .github/workflows/osm-workflow.yml (wrangler workflows trigger).
+[[workflows]]
+name = "comebacktowns-osm"
+binding = "OSM_WORKFLOW"
+class_name = "OsmWorkflow"
+schedules = ["0 3 2 * *"]

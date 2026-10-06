@@ -1,0 +1,58 @@
+name: osm-workflow
+
+# Manual run of the OSM Workflow (worker/src/osm-workflow.ts): publish the Overpass queries
+# manifest from the latest TIGER snapshot, then start a Workflow instance that fetches every
+# town as a durable step into R2 under the given snapshot date. The scheduled instance runs
+# on its own on the 2nd at 03:00 UTC (wrangler.toml); this is for seeding and re-runs.
+on:
+  workflow_dispatch:
+    inputs:
+      as_of:
+        description: "ISO date for the snapshot key (blank = today, UTC)"
+        required: false
+        default: ""
+      write_queries:
+        description: "Publish a fresh queries manifest first"
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: osm-workflow
+  cancel-in-progress: false
+
+jobs:
+  trigger:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+      - run: uv python install
+      - run: uv sync --all-groups
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Check secrets are present (values are never printed)
+        run: |
+          for name in CLOUDFLARE_API_TOKEN CLOUDFLARE_ACCOUNT_ID; do
+            if [ -z "${!name}" ]; then echo "::error::$name is not set in repository secrets"; exit 1; fi
+          done
+      - name: Publish the queries manifest
+        if: ${{ inputs.write_queries }}
+        run: |
+          args=""
+          if [ -n "${{ inputs.as_of }}" ]; then args="--as-of ${{ inputs.as_of }}"; fi
+          uv run python -m pipeline.cli osm-queries $args
+      - name: Start a Workflow instance
+        run: |
+          params="{}"
+          if [ -n "${{ inputs.as_of }}" ]; then params="{\"as_of\":\"${{ inputs.as_of }}\"}"; fi
+          npx --yes wrangler@4 workflows trigger comebacktowns-osm "$params"

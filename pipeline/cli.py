@@ -60,6 +60,15 @@ def cmd_discover(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_osm_queries(args: argparse.Namespace) -> int:
+    """Publish the Overpass queries manifest the OSM Workflow reads (R2, never committed)."""
+    from pipeline.ingest import osm
+
+    key = osm.write_queries(args.as_of, store=raw_store())
+    print(key)
+    return 0
+
+
 def cmd_scope(args: argparse.Namespace) -> int:
     from pipeline.ingest import gazetteer, popest
     from pipeline.qa.towns import validate_towns
@@ -284,6 +293,12 @@ def build_parser() -> argparse.ArgumentParser:
     )
     discover.add_argument("source", nargs="*", help=f"any of: {', '.join(DISCOVERERS)}")
     discover.set_defaults(func=cmd_discover)
+
+    osm_queries = sub.add_parser(
+        "osm-queries", help="publish the Overpass queries manifest for the OSM Workflow"
+    )
+    osm_queries.add_argument("--as-of", help="ISO date for the manifest key (default: today)")
+    osm_queries.set_defaults(func=cmd_osm_queries)
 
     scope = sub.add_parser("scope", help="build the in-scope town list and write the towns table")
     scope.add_argument("--as-of", help="ISO date of the popest/gazetteer snapshot to use")

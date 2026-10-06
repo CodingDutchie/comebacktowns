@@ -39,3 +39,13 @@ def test_discover_prints_only_sources_with_new_years(monkeypatch, capsys):
     assert cli.main(["discover"]) == 0
     assert capsys.readouterr().out == "permits\t2026\n"
     assert cli.main(["discover", "zillow"]) == 2
+
+
+def test_osm_queries_command_writes_the_manifest(monkeypatch, local_store, capsys):
+    monkeypatch.setattr(cli, "raw_store", lambda: local_store)
+    monkeypatch.setattr(
+        "pipeline.ingest.osm.write_queries",
+        lambda as_of, store: f"raw/osm-queries/{as_of}/queries.json",
+    )
+    assert cli.main(["osm-queries", "--as-of", "2026-10-02"]) == 0
+    assert capsys.readouterr().out.strip() == "raw/osm-queries/2026-10-02/queries.json"
