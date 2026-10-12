@@ -20,7 +20,9 @@ const site = meta.site;
 const analyticsToken = (config.ANALYTICS_TOKEN ?? "").trim();
 const { title, description = site.TAGLINE, jsonLd, crumbs, image = "/social-card.png", noindex = false } = Astro.props;
 const fullTitle = title ? `${title} · ${site.SITE_NAME}` : `${site.SITE_NAME} — readiness grades and momentum for New York towns`;
-const canonical = new URL(Astro.url.pathname, Astro.site);
+// build.format "file" gives /about.html here, but the Worker serves /about and redirects the
+// .html form to it, so the canonical drops the extension to match the served URL and the sitemap.
+const canonical = new URL(Astro.url.pathname.replace(/(\/index)?\.html$/, "") || "/", Astro.site);
 const graph: Record<string, unknown>[] = [
   { "@type": "WebSite", "@id": `${origin}/#website`, url: `${origin}/`, name: site.SITE_NAME, description: site.TAGLINE, inLanguage: "en-US", publisher: { "@id": `${origin}/#organization` } },
   {
