@@ -335,3 +335,20 @@ export function permanentAssetRedirect(status: number, location: string | null, 
   if (target.origin !== from.origin) return null;
   return target.toString();
 }
+
+/**
+ * One canonical origin: https and the bare domain. www already redirected, but
+ * plain `http://comebacktowns.com/` served the whole site (launch-check, Oct
+ * 2026): the Worker runs for http too and nothing upgraded it. Returns the URL
+ * to 301 to, or null when the request is already on the canonical origin.
+ */
+export function canonicalOriginRedirect(requestUrl: string): string | null {
+  const url = new URL(requestUrl);
+  const www = url.hostname.startsWith("www.");
+  // Local development (wrangler dev) is plain http on localhost; leave it alone.
+  const local = url.hostname === "localhost" || url.hostname === "127.0.0.1";
+  if (!www && (url.protocol === "https:" || local)) return null;
+  if (www) url.hostname = url.hostname.slice(4);
+  if (!local) url.protocol = "https:";
+  return url.toString();
+}
