@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildIndex, compare, filter, parseFilter, publicTown, search, type MetricRow, type MomentumRow, type ScoreRow, type TownRow } from "../src/logic";
+import { buildIndex, compare, filter, parseFilter, permanentAssetRedirect, publicTown, search, type MetricRow, type MomentumRow, type ScoreRow, type TownRow } from "../src/logic";
 
 const towns: TownRow[] = [
   { geoid: "3613002", name: "Catskill", legal_type: "village", county: "Greene", region: "Capital Region", lat: 42.2, lon: -73.9, pop_latest: 3723, slug: "catskill-ny" },
@@ -101,5 +101,29 @@ describe("compare", () => {
     expect(r.found.map((t) => t.slug)).toEqual(["catskill-ny", "hudson-ny"]);
     expect(r.missing).toEqual(["nowhere-ny"]);
     expect("search" in publicTown(r.found[0])).toBe(false);
+  });
+});
+
+describe("permanentAssetRedirect", () => {
+  const req = "https://comebacktowns.com/about.html";
+  it("turns the assets layer's 307 into a permanent redirect to the same place", () => {
+    expect(permanentAssetRedirect(307, "/about", req)).toBe("https://comebacktowns.com/about");
+    expect(permanentAssetRedirect(307, "https://comebacktowns.com/town/catskill-ny", "https://comebacktowns.com/town/catskill-ny/")).toBe(
+      "https://comebacktowns.com/town/catskill-ny",
+    );
+  });
+  it("keeps the query string the assets layer carried", () => {
+    expect(permanentAssetRedirect(307, "/compare?towns=a,b", "https://comebacktowns.com/compare.html?towns=a,b")).toBe(
+      "https://comebacktowns.com/compare?towns=a,b",
+    );
+  });
+  it("leaves every other response alone", () => {
+    expect(permanentAssetRedirect(200, null, req)).toBeNull();
+    expect(permanentAssetRedirect(404, null, req)).toBeNull();
+    expect(permanentAssetRedirect(301, "/about", req)).toBeNull();
+    expect(permanentAssetRedirect(307, null, req)).toBeNull();
+  });
+  it("never makes an off-site redirect permanent", () => {
+    expect(permanentAssetRedirect(307, "https://example.com/x", req)).toBeNull();
   });
 });

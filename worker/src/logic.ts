@@ -318,3 +318,20 @@ export function publicTown(t: IndexedTown): Omit<IndexedTown, "search"> {
   const { search: _search, ...rest } = t;
   return rest;
 }
+
+/**
+ * The static-assets layer normalises page URLs itself (`/about.html` and
+ * `/about/` both go to `/about`, the canonical form with build.format "file"
+ * and trailingSlash "never") but answers with 307 Temporary Redirect. A
+ * temporary redirect tells Google to keep the old URL, and Search Console held
+ * 69 pages as "Alternate page with proper canonical tag" pointing at their
+ * `.html` twins. Same target, made permanent: returns the absolute location to
+ * 301 to, or null to pass the response through unchanged.
+ */
+export function permanentAssetRedirect(status: number, location: string | null, requestUrl: string): string | null {
+  if (status !== 307 || !location) return null;
+  const target = new URL(location, requestUrl);
+  const from = new URL(requestUrl);
+  if (target.origin !== from.origin) return null;
+  return target.toString();
+}
