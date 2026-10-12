@@ -169,6 +169,12 @@ applied with wrangler), `site/` (Astro 5, static), `worker/` (Phase 5 API), `tes
   (`CACHE`, TTL `INDEX_TTL` seconds) with a per-isolate memo in front; responses carry
   `Cache-Control` so the edge serves repeats. CORS reflects only origins in `SITE_ORIGINS`.
   Pure search/filter/compare logic is in `worker/src/logic.ts` and unit-tested with vitest.
+- **Old page URLs redirect permanently.** With `build.format: "file"` and `trailingSlash:
+  "never"` the canonical URL is extensionless (`/about`). The static-assets layer already sends
+  `/about.html` and `/about/` there, but with a 307; Search Console held 69 pages as "Alternate
+  page with proper canonical tag" against their `.html` twins (Oct 2026). The Worker turns that
+  307 into a 301 to the same location (`permanentAssetRedirect` in `worker/src/logic.ts`), so
+  Google moves its canonical to the extensionless URL.
 - **Custom domain.** `comebacktowns.com` and `www.comebacktowns.com` are Workers custom
   domains declared in `wrangler.toml` (`routes`), created by `wrangler deploy`. Email routing
   for `data@` is separate and untouched.

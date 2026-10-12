@@ -10,7 +10,7 @@
  * KV for INDEX_TTL seconds, so a search never waits on the database. Responses carry
  * Cache-Control so the edge cache serves repeated queries without running the Worker.
  */
-import { buildIndex, compare, filter, parseFilter, publicTown, search, type MetricRow, type MomentumRow, type ScoreRow, type TownIndex, type TownRow, FACT_METRICS } from "./logic";
+import { buildIndex, compare, filter, parseFilter, permanentAssetRedirect, publicTown, search, type MetricRow, type MomentumRow, type ScoreRow, type TownIndex, type TownRow, FACT_METRICS } from "./logic";
 
 // The OSM Workflow (one durable Overpass query per town, ahead of the monthly refresh) is
 // exported from this Worker so it shares the RAW bucket binding; see osm-workflow.ts.
@@ -141,6 +141,9 @@ export default {
         return json({ error: "internal error" }, request, env, 500);
       }
     }
-    return env.ASSETS.fetch(request);
+    const res = await env.ASSETS.fetch(request);
+    // The assets layer's own URL normalisation, made permanent (see logic.ts).
+    const to = permanentAssetRedirect(res.status, res.headers.get("location"), request.url);
+    return to ? Response.redirect(to, 301) : res;
   },
 } satisfies ExportedHandler<Env>;
