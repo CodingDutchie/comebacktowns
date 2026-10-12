@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildIndex, compare, filter, parseFilter, permanentAssetRedirect, publicTown, search, type MetricRow, type MomentumRow, type ScoreRow, type TownRow } from "../src/logic";
+import { buildIndex, compare, filter, canonicalOriginRedirect, parseFilter, permanentAssetRedirect, publicTown, search, type MetricRow, type MomentumRow, type ScoreRow, type TownRow } from "../src/logic";
 
 const towns: TownRow[] = [
   { geoid: "3613002", name: "Catskill", legal_type: "village", county: "Greene", region: "Capital Region", lat: 42.2, lon: -73.9, pop_latest: 3723, slug: "catskill-ny" },
@@ -125,5 +125,19 @@ describe("permanentAssetRedirect", () => {
   });
   it("never makes an off-site redirect permanent", () => {
     expect(permanentAssetRedirect(307, "https://example.com/x", req)).toBeNull();
+  });
+});
+
+describe("canonicalOriginRedirect", () => {
+  it("sends plain http to https, path and query kept", () => {
+    expect(canonicalOriginRedirect("http://comebacktowns.com/town/catskill-ny?x=1")).toBe("https://comebacktowns.com/town/catskill-ny?x=1");
+  });
+  it("sends www to the bare domain in one hop, on either scheme", () => {
+    expect(canonicalOriginRedirect("https://www.comebacktowns.com/about")).toBe("https://comebacktowns.com/about");
+    expect(canonicalOriginRedirect("http://www.comebacktowns.com/")).toBe("https://comebacktowns.com/");
+  });
+  it("leaves the canonical origin and local development alone", () => {
+    expect(canonicalOriginRedirect("https://comebacktowns.com/")).toBeNull();
+    expect(canonicalOriginRedirect("http://localhost:8787/about")).toBeNull();
   });
 });

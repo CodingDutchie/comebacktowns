@@ -10,7 +10,7 @@
  * KV for INDEX_TTL seconds, so a search never waits on the database. Responses carry
  * Cache-Control so the edge cache serves repeated queries without running the Worker.
  */
-import { buildIndex, compare, filter, parseFilter, permanentAssetRedirect, publicTown, search, type MetricRow, type MomentumRow, type ScoreRow, type TownIndex, type TownRow, FACT_METRICS } from "./logic";
+import { buildIndex, compare, filter, canonicalOriginRedirect, parseFilter, permanentAssetRedirect, publicTown, search, type MetricRow, type MomentumRow, type ScoreRow, type TownIndex, type TownRow, FACT_METRICS } from "./logic";
 
 // The OSM Workflow (one durable Overpass query per town, ahead of the monthly refresh) is
 // exported from this Worker so it shares the RAW bucket binding; see osm-workflow.ts.
@@ -128,11 +128,9 @@ async function api(request: Request, env: Env, ctx: ExecutionContext, url: URL):
 export default {
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     const url = new URL(request.url);
-    // www -> apex, permanently
-    if (url.hostname.startsWith("www.")) {
-      url.hostname = url.hostname.slice(4);
-      return Response.redirect(url.toString(), 301);
-    }
+    // http and www -> https apex, permanently, in one hop; never cached (see logic.ts)
+    const canonical = canonicalOriginRedirect(request.url);
+    if (canonical) return new Response(null, { status: 301, headers: { location: canonical, "cache-control": "no-store" } });
     if (url.pathname === "/api" || url.pathname.startsWith("/api/")) {
       try {
         return await api(request, env, ctx, url);

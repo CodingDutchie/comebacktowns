@@ -271,3 +271,10 @@ that from commits, traffic and uptime.
 A Stop hook asks for this automatically when a session has committed and not
 reported, and goes quiet once it has. Both are inert without `INGEST_TOKEN` and
 the two `CF_ACCESS_*` variables, so a machine without them never sees a prompt.
+
+## Before launch and after any domain or routing change
+
+Run the `launch-check` skill (`node .claude/skills/launch-check/check.mjs https://<site>`)
+and fix every FAIL with its recipe. It catches the duplicate hosts, soft-404s,
+canonical mismatches and stale analytics beacons that otherwise surface weeks later
+in Search Console.
