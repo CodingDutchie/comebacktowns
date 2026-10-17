@@ -136,6 +136,10 @@ describe("canonicalOriginRedirect", () => {
     expect(canonicalOriginRedirect("https://www.comebacktowns.com/about")).toBe("https://comebacktowns.com/about");
     expect(canonicalOriginRedirect("http://www.comebacktowns.com/")).toBe("https://comebacktowns.com/");
   });
+  it("sends the workers.dev address to the custom domain, path and query kept", () => {
+    expect(canonicalOriginRedirect("https://comebacktowns.edekoop.workers.dev/town/catskill-ny?x=1")).toBe("https://comebacktowns.com/town/catskill-ny?x=1");
+    expect(canonicalOriginRedirect("http://comebacktowns.edekoop.workers.dev/")).toBe("https://comebacktowns.com/");
+  });
   it("leaves the canonical origin and local development alone", () => {
     expect(canonicalOriginRedirect("https://comebacktowns.com/")).toBeNull();
     expect(canonicalOriginRedirect("http://localhost:8787/about")).toBeNull();
