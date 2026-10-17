@@ -16,7 +16,7 @@ routes = [
 ]
 
 [vars]
-SITE_ORIGINS = "https://comebacktowns.com,https://www.comebacktowns.com,https://comebacktowns.edekoop.workers.dev"
+SITE_ORIGINS = "https://comebacktowns.com,https://www.comebacktowns.com"
 INDEX_TTL = "600"
 
 [assets]
