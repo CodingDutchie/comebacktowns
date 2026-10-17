@@ -6,8 +6,13 @@
  *   node check.mjs https://example.com            # human-readable, exit 1 on any FAIL
  *   node check.mjs https://example.com --json     # machine-readable
  *   node check.mjs https://example.com --pages 50 # sample more sitemap URLs (default 25)
+ *   node check.mjs https://example.com --alias foo.pages.dev   # extra host that must redirect (repeatable)
  *
- * Every FAIL and WARN names a recipe (R1…R8) in SKILL.md with the fix.
+ * With CLOUDFLARE_API_TOKEN and CF_ACCOUNT_ID (or CLOUDFLARE_ACCOUNT_ID) it also
+ * looks up the site's own pages.dev / workers.dev addresses and its Web
+ * Analytics sites; without them those checks are skipped and say so.
+ *
+ * Every FAIL and WARN names a recipe (R1…R10) in SKILL.md with the fix.
  */
 
 const args = process.argv.slice(2);
@@ -18,6 +23,9 @@ if (!target) {
 }
 const JSON_OUT = args.includes('--json');
 const PAGES = Number(args[args.indexOf('--pages') + 1]) || 25;
+const ALIASES = args.flatMap((a, i) => (a === '--alias' && args[i + 1] ? [args[i + 1].replace(/^https?:\/\//, '').replace(/\/.*$/, '')] : []));
+const CF_TOKEN = process.env.CLOUDFLARE_API_TOKEN;
+const CF_ACCOUNT = process.env.CF_ACCOUNT_ID || process.env.CLOUDFLARE_ACCOUNT_ID;
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0 Safari/537.36';
 const TITLE_MAX = 60;
 
@@ -48,6 +56,17 @@ const titleOf = (html) => {
   return m[1].replace(/\s+/g, ' ').trim()
     .replace(/&amp;/g, '&').replace(/&#39;|&apos;/g, "'").replace(/&quot;/g, '"').replace(/&lt;/g, '<').replace(/&gt;/g, '>');
 };
+const beaconTokens = (html) =>
+  [...new Set([...html.matchAll(/data-cf-beacon=[^>]*?token(?:"|&quot;|&#34;|&#x22;)\s*:\s*(?:"|&quot;|&#34;|&#x22;)([0-9a-f]{16,})/gi)].map((m) => m[1]))];
+async function cfApi(path) {
+  if (!CF_TOKEN || !CF_ACCOUNT) return null;
+  try {
+    const r = await fetch(`https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT}${path}`, {
+      headers: { authorization: `Bearer ${CF_TOKEN}` }, signal: AbortSignal.timeout(20000),
+    }).then((x) => x.json());
+    return r?.success ? r.result : null;
+  } catch { return null; }
+}
 const noindex = (html, headers) =>
   /<meta[^>]+name=["']robots["'][^>]+content=["'][^"']*noindex/i.test(html) || /noindex/i.test(headers.get('x-robots-tag') || '');
 
@@ -102,6 +121,39 @@ if (self.ok && self.status >= 300 && self.status < 400 && new URL(abs(self.locat
   add('FAIL', 'origin', `${origin}/ redirects to itself (${self.status}): a cached redirect`, 'R5');
 }
 
+// ── 1b. The platform's own address redirects too ────────────────────────
+// Every Pages project answers on <project>.pages.dev and a Worker on
+// <name>.<account>.workers.dev. Left serving the site, that is a second copy
+// that splits analytics (keeporsellcalc, Oct 2026: a fifth of page loads)
+// and can be indexed. Preview deployments (<hash>.<project>.pages.dev) are fine.
+const platform = new Set(ALIASES);
+// Pages lists 10 projects a page and rejects a larger per_page.
+let projects = null;
+for (let page = 1; page <= 20; page++) {
+  const batch = await cfApi(`/pages/projects?page=${page}`);
+  if (!batch) break;
+  projects = [...(projects || []), ...batch];
+  if (batch.length < 10) break;
+}
+const wdomains = await cfApi('/workers/domains');
+const wsub = await cfApi('/workers/subdomain');
+for (const p of projects || []) if ((p.domains || []).some((d) => d.replace(/^www\./, '') === apex)) platform.add(p.subdomain);
+for (const d of wdomains || []) if (d.hostname.replace(/^www\./, '') === apex && wsub?.subdomain) platform.add(`${d.service}.${wsub.subdomain}.workers.dev`);
+if (!projects && !ALIASES.length) add('INFO', 'platform', 'pages.dev / workers.dev address not checked: set CLOUDFLARE_API_TOKEN + CF_ACCOUNT_ID, or pass --alias');
+for (const alias of platform) {
+  const u = `https://${alias}/`;
+  const r = await req(u);
+  if (!r.ok) { add('INFO', 'platform', `${u} does not answer (${r.error})`); continue; }
+  if ([301, 308].includes(r.status) && new URL(abs(r.location, u)).origin === origin) add('PASS', 'platform', `${u} → ${r.status} ${origin}`);
+  else if (r.status >= 300 && r.status < 400) add('FAIL', 'platform', `${u} redirects with ${r.status} to ${r.location}; needs 301/308 to ${origin}`, 'R9');
+  else if (r.status === 200) {
+    const c = canonicalOf(r.body);
+    const canonOk = c && new URL(abs(c, u)).origin === origin;
+    add(canonOk ? 'WARN' : 'FAIL', 'platform', `${u} serves the site itself (200)${canonOk ? ` with canonical → ${origin}: not indexed, but its visits are counted under another host` : `: a duplicate of ${origin}`}`, 'R9');
+  } else if ([401, 403, 404].includes(r.status) || /\.cloudflareaccess\.com$/.test(r.location || '')) add('PASS', 'platform', `${u} answers ${r.status} (not serving the site)`);
+  else add('WARN', 'platform', `${u} answers ${r.status}`, 'R9');
+}
+
 // ── 2. Unknown pages are real 404s ───────────────────────────────────────
 const probe = `${origin}/launch-check-${Math.random().toString(36).slice(2, 10)}`;
 const nf = await req(probe);
@@ -144,7 +196,8 @@ else {
 
 // ── 4. Sampled pages: 200, self-canonical, indexable, titled ─────────────
 const sample = [...new Set([`${origin}/`, ...spread(pages, PAGES)])];
-const bad = { status: [], canon: [], noidx: [], title: [], head: [] };
+const bad = { status: [], canon: [], noidx: [], title: [], head: [], beacon: [], beaconMix: [] };
+const homeTokens = beaconTokens(home.body);
 for (const u of sample) {
   const r = await req(u);
   if (!r.ok) { bad.status.push(`${u} (${r.error})`); continue; }
@@ -156,6 +209,11 @@ for (const u of sample) {
   const t = titleOf(r.body);
   if (!t) bad.title.push(`${u} has no <title>`);
   else if (t.length > TITLE_MAX) bad.title.push(`${u} (${t.length} chars): ${t}`);
+  if (homeTokens.length) {
+    const tk = beaconTokens(r.body);
+    if (!tk.length) bad.beacon.push(u);
+    else if (tk.some((t) => !homeTokens.includes(t))) bad.beaconMix.push(`${u} (token ${tk.map((t) => t.slice(0, 6)).join(', ')})`);
+  }
   const h = await req(u, { method: 'HEAD' });
   if (h.ok && h.status !== r.status) bad.head.push(`${u}: HEAD ${h.status}, GET ${r.status}`);
 }
@@ -163,6 +221,10 @@ report('pages', bad.status, `sampled sitemap URLs answer 200 directly (${sample.
 report('canonical', bad.canon, 'every sampled page is canonical to itself', 'FAIL', 'R3', 'are not canonical to themselves');
 report('noindex', bad.noidx, 'no sampled page is noindex', 'FAIL', 'R3', 'are in the sitemap but noindex');
 report('head', bad.head, 'HEAD matches GET on every sampled page', 'FAIL', 'R4', 'answer HEAD differently from GET');
+if (homeTokens.length) {
+  report('beacon', bad.beacon, 'every sampled page carries the analytics beacon', 'WARN', 'R8', 'carry no analytics beacon (pages rendered by Functions or a server get no Pages injection)');
+  report('beacon', bad.beaconMix, 'every sampled page reports to the same analytics site as the home page', 'FAIL', 'R8', 'report to a different analytics site than the home page');
+}
 report('title', bad.title, `every sampled title is ≤ ${TITLE_MAX} characters`, 'WARN', 'R7', 'have a missing or long title');
 
 // ── 5. URL variants of a real page redirect permanently ──────────────────
@@ -189,10 +251,30 @@ if (pagePath) {
 }
 
 // ── 6. Analytics: exactly one Cloudflare beacon ──────────────────────────
-const tokens = [...new Set([...home.body.matchAll(/data-cf-beacon=[^>]*?token(?:"|&quot;|&#34;|&#x22;)\s*:\s*(?:"|&quot;|&#34;|&#x22;)([0-9a-f]{16,})/gi)].map((m) => m[1]))];
+const tokens = homeTokens;
 if (!tokens.length) add('WARN', 'analytics', 'no Cloudflare Web Analytics beacon on the home page', 'R8');
 else if (tokens.length > 1) add('FAIL', 'analytics', `${tokens.length} different beacon tokens on the home page (${tokens.map((t) => t.slice(0, 6)).join(', ')}): one is stale`, 'R8');
 else add('PASS', 'analytics', `one beacon (token ${tokens[0].slice(0, 6)}…)`);
+
+// One Web Analytics site per domain. A Pages project's snippet site and the
+// zone's automatic site can both exist for one domain; each counts a different
+// set of pages and the Cloudflare dashboard shows two half-pictures
+// (buildpermitguide, keeporsellcalc, howlifecompares, Oct 2026).
+const rumSites = await cfApi('/rum/site_info/list?per_page=100');
+if (rumSites) {
+  const covers = (site) => {
+    if (site.host) { try { return new RegExp(site.host).test(host); } catch { return site.host.includes(host); } }
+    return site.ruleset?.zone_name && (host === site.ruleset.zone_name || host.endsWith(`.${site.ruleset.zone_name}`));
+  };
+  const active = rumSites.filter((x) => covers(x) && (x.auto_install ? x.ruleset?.enabled !== false : true));
+  const label = (x) => `${x.host ? 'JS snippet' : 'automatic'} site ${x.site_tag.slice(0, 6)}… (token ${x.site_token.slice(0, 6)}…)`;
+  const onPage = active.filter((x) => tokens.includes(x.site_token));
+  if (tokens.length && !rumSites.some((x) => tokens.includes(x.site_token))) add('FAIL', 'analytics', `the beacon token ${tokens[0].slice(0, 6)}… belongs to no Web Analytics site on this account: it records nowhere you can see`, 'R8');
+  if (active.length > 1) {
+    const keep = onPage[0] || active[0];
+    add('WARN', 'analytics', `${active.length} active Web Analytics sites cover ${host}: ${active.map(label).join(', ')}. Keep the ${label(keep)}${onPage.length ? ' whose token is on the page' : ''}; disable the others once every page carries its beacon`, 'R10');
+  } else if (active.length === 1) add('PASS', 'analytics', `one Web Analytics site covers ${host}`);
+} else if (CF_TOKEN && CF_ACCOUNT) add('INFO', 'analytics', 'could not list Web Analytics sites (the token needs Account · Account Analytics · Read and Web Analytics read)');
 
 // Optional: does Cloudflare actually have page loads for this host? Needs the read-only analytics token.
 if (tokens.length && process.env.CLOUDFLARE_ANALYTICS_TOKEN && (process.env.CF_ACCOUNT_ID || process.env.CLOUDFLARE_ACCOUNT_ID)) {

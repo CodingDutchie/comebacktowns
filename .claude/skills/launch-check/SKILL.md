@@ -1,6 +1,6 @@
 ---
 name: launch-check
-description: Probe a live website for the indexing and analytics mistakes that kept recurring across Eddy's portfolio — duplicate hosts (www, http, bare domain), soft-404s, canonical/sitemap mismatches, HEAD returning 404, temporary or cached redirects, long titles, missing or stale Cloudflare Web Analytics beacons — and fix them with tested recipes. Use before a site's first launch, after any domain, DNS, hosting or routing change, when Search Console shows "Alternate page", "Duplicate", "Soft 404" or "Page with redirect" exclusions, or when the user asks to check a site's SEO/indexing setup.
+description: Probe a live website for the indexing and analytics mistakes that kept recurring across Eddy's portfolio — duplicate hosts (www, http, bare domain, the pages.dev / workers.dev address), soft-404s, canonical/sitemap mismatches, HEAD returning 404, temporary or cached redirects, long titles, missing or stale Cloudflare Web Analytics beacons, pages without the beacon, duplicate Web Analytics sites for one domain — and fix them with tested recipes. Use before a site's first launch, after any domain, DNS, hosting or routing change, when Search Console shows "Alternate page", "Duplicate", "Soft 404" or "Page with redirect" exclusions, or when the user asks to check a site's SEO/indexing setup.
 ---
 
 # launch-check
@@ -16,12 +16,16 @@ all of them can be tested with plain HTTP. So test them, before Google does.
 node .claude/skills/launch-check/check.mjs https://example.com
 node .claude/skills/launch-check/check.mjs https://example.com --pages 60   # sample more sitemap URLs
 node .claude/skills/launch-check/check.mjs https://example.com --json       # for CI
+node .claude/skills/launch-check/check.mjs https://example.com --alias foo.pages.dev  # extra host to test
 ```
 
 No dependencies, Node 18+. Exit code 1 on any FAIL, so it can gate a deploy
 smoke-check. With `CLOUDFLARE_ANALYTICS_TOKEN` and `CF_ACCOUNT_ID` (or
 `CLOUDFLARE_ACCOUNT_ID`) in the environment it also asks Cloudflare whether the
-beacon is actually recording this host.
+beacon is actually recording this host. With `CLOUDFLARE_API_TOKEN` (Pages and
+Workers read, Web Analytics read) and the account id it also finds the site's own
+`*.pages.dev` / `*.workers.dev` address and its Web Analytics sites by itself;
+without it, pass `--alias` for the platform address.
 
 **When:** before the first public launch; after every domain, DNS, hosting,
 redirect or routing change; after adding analytics; and whenever Search Console's
@@ -44,8 +48,10 @@ What it checks:
 | pages | sampled sitemap URLs answer 200 directly, are canonical to themselves, are not noindex |
 | head | HEAD returns the same status as GET |
 | variants | `.html` and trailing-slash twins of a real page 301/308 to it |
+| platform | the project's `*.pages.dev` / `*.workers.dev` address 301s to the canonical origin (or does not serve the site) |
 | title | ≤ 60 characters (WARN only) |
-| analytics | exactly one Cloudflare beacon; with the token, Cloudflare has page loads for the host |
+| beacon | every sampled page carries the beacon, and the same token as the home page |
+| analytics | exactly one Cloudflare beacon; with the tokens, it belongs to a site on the account, only one active Web Analytics site covers the host, and Cloudflare has page loads for it |
 
 Do not act on a result you have not reproduced with `curl -sSI`. And do not tell
 the user something is fixed until a re-run of this script against the live site
@@ -204,9 +210,57 @@ last. Generate them from data with a length check rather than writing them by ha
   nothing.
 - Zone **automatic injection does not reach pages a Worker serves**; put the
   beacon in the layout with the site's token (public by design).
+- **Pages injects its beacon into static files only.** Pages rendered by Pages
+  Functions (or any server-side route) get none, so with a Pages-injected beacon
+  add the same `<script defer src='https://static.cloudflareinsights.com/beacon.min.js'
+  data-cf-beacon='{"token": "…"}'></script>` to the HTML your Functions render, with
+  the same token (buildpermitguide's change logs, Oct 2026). The `beacon` check
+  samples sitemap pages; list Functions pages in a sitemap so it sees them.
 - Verify the next day: Cloudflare must have page loads for the host (this script
   checks it with the analytics token). The portfolio dashboard collector reads
   the same data.
+
+### R9 — The platform address is not a second site
+
+Every Pages project also answers on `<project>.pages.dev`, and a Worker on
+`<name>.<account>.workers.dev`. Serving the site there splits the analytics (one
+site lost a fifth of its counted page loads to it) and leaves a duplicate for
+crawlers. Redirect the production address, leave preview deployments alone:
+
+```js
+// functions/_middleware.js (Pages) — deploy from the repo root (see R1)
+const PAGES_DEV_HOST = 'project.pages.dev';
+const ORIGIN = 'https://example.com';
+export async function onRequest({ request, next }) {
+  const url = new URL(request.url);
+  if (url.hostname === PAGES_DEV_HOST) {
+    return new Response(null, { status: 301, headers: { location: `${ORIGIN}${url.pathname}${url.search}`, 'cache-control': 'no-store' } });
+  }
+  return next();
+}
+```
+
+A Worker: include the workers.dev host in R1's redirect, or set
+`workers_dev = false` in `wrangler.toml` so the address stops answering at all.
+A 200 with a canonical to the real origin is only a WARN: Google will not index
+it, but its visits are still counted under another host.
+
+### R10 — One Web Analytics site per domain
+
+A domain can end up with two Web Analytics sites: the Pages project's
+**JS snippet** site (Pages → project → Metrics → Web Analytics) and the zone's
+**automatic setup** site (Analytics & Logs → Web Analytics). Each counts a
+different set of pages, so the Cloudflare dashboard shows two half-pictures.
+Keep the one whose token is in the page HTML and that holds the history:
+
+- **Static site on Pages**: keep the JS snippet site; disable automatic setup on
+  the zone's site (Manage site). Add the snippet to any Functions-rendered pages
+  first (R8), or they go untracked.
+- **Site rendered by Pages Functions or a Worker**: keep the automatic site, it
+  reaches every page; disable Web Analytics in the Pages project's Metrics tab.
+
+Change it in this order: every page carries the kept beacon, then disable the
+other. Never delete the Pages project or the Worker — only the analytics site.
 
 ## After fixing
 
