@@ -278,3 +278,11 @@ Run the `launch-check` skill (`node .claude/skills/launch-check/check.mjs https:
 and fix every FAIL with its recipe. It catches the duplicate hosts, soft-404s,
 canonical mismatches and stale analytics beacons that otherwise surface weeks later
 in Search Console.
+
+## Owner & backlog
+
+- The owner is **Emory** (Emory de Koop). Address the owner as Emory — never "Eddy", even where seed data uses that nickname.
+- `BACKLOG.md` is this repo's task list. Read it at the start of a session. When you finish a task, tick it and add the date and PR. Add new tasks you discover. Don't start items under "Needs Emory"; ask instead.
+- Model use: Sonnet by default, Haiku for small mechanical jobs, Opus only where a mistake is costly (tax/finance claims, pricing logic, tricky debugging).
+- Ask Emory before anything irreversible, any production data change, or any spend beyond an agreed cap.
+- Keep to the project's design language (tokens and shared components); extend it rather than adding one-off styles.

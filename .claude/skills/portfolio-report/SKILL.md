@@ -1,6 +1,6 @@
 ---
 name: portfolio-report
-description: Report what a working session actually shipped to the portfolio dashboard, and register a project that is not on it yet. Use at the end of a session that made commits in one of Eddy's project repos, when the Stop hook asks for a report, or when the user says to report/log the session to the dashboard. Do not use for repos that are not part of the portfolio.
+description: Report what a working session actually shipped to the portfolio dashboard, and register a project that is not on it yet. Use at the end of a session that made commits in one of Emory's project repos, when the Stop hook asks for a report, or when the user says to report/log the session to the dashboard. Do not use for repos that are not part of the portfolio.
 ---
 
 # Reporting a session to the portfolio dashboard

@@ -1,6 +1,6 @@
 ---
 name: launch-check
-description: Probe a live website for the indexing and analytics mistakes that kept recurring across Eddy's portfolio — duplicate hosts (www, http, bare domain, the pages.dev / workers.dev address), soft-404s, canonical/sitemap mismatches, HEAD returning 404, temporary or cached redirects, long titles, missing or stale Cloudflare Web Analytics beacons, pages without the beacon, duplicate Web Analytics sites for one domain — and fix them with tested recipes. Use before a site's first launch, after any domain, DNS, hosting or routing change, when Search Console shows "Alternate page", "Duplicate", "Soft 404" or "Page with redirect" exclusions, or when the user asks to check a site's SEO/indexing setup.
+description: Probe a live website for the indexing and analytics mistakes that kept recurring across Emory's portfolio — duplicate hosts (www, http, bare domain, the pages.dev / workers.dev address), soft-404s, canonical/sitemap mismatches, HEAD returning 404, temporary or cached redirects, long titles, missing or stale Cloudflare Web Analytics beacons, pages without the beacon, duplicate Web Analytics sites for one domain — and fix them with tested recipes. Use before a site's first launch, after any domain, DNS, hosting or routing change, when Search Console shows "Alternate page", "Duplicate", "Soft 404" or "Page with redirect" exclusions, or when the user asks to check a site's SEO/indexing setup.
 ---
 
 # launch-check
