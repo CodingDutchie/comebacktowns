@@ -31,8 +31,8 @@ const intro = [
   usable(net) ? `Net migration of tax filers was ${formatValue("county_net_migration_rate", net.value)} residents in ${net.period}${usable(netNy) ? ` (the median New York county: ${formatValue("county_net_migration_rate", netNy.value)})` : ""}${usable(inflow) && usable(outflow) ? `, ${population(inflow.value)} moving in and ${population(outflow.value)} moving out` : ""}.` : "",
   usable(countyHome) ? `The county median home value was ${formatValue("county_median_home_value", countyHome.value)} (ACS ${countyHome.period}).` : "",
 ].filter(Boolean).join(" ");
-const title = `${county} County, NY towns: readiness grades and momentum (${year})`;
-const description = `${list.length === 1 ? "The city or village" : `The ${list.length} cities and villages`} of ${county} County, New York, ranked by comeback readiness with momentum labels, home values, drive times and county tax-filer migration, from dated public data.`;
+const title = `Towns in ${county} County, NY (${year})`;
+const description = `${list.length === 1 ? "The city or village" : `The ${list.length} towns, cities and villages`} in ${county} County, New York, ranked by readiness grade and momentum label, with home values, drive times to NYC and county tax-filer migration.`;
 const ld = itemList(`${county} County towns by readiness, ${meta.site.SITE_NAME} ${year}`, list.map((t) => ({ name: `${t.name}, NY`, path: `/town/${t.slug}` })), description);
 const metricNames: Record<string, string> = {
   county_net_migration_rate: "County net migration of tax filers, per 1,000",
