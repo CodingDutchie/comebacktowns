@@ -23,5 +23,5 @@ Model tag = suggested model for the job. Source: portfolio triage of 21 Oct 2026
 
 ## Done
 
-- [x] 2026-10-24 Titles/descriptions rewritten for county and region pages (PR pending). Search Console shows ~1,600 of the site's impressions are one Zillow CSV filename landing on /sources (pos 6, 0 clicks, not an audience worth chasing); town pages rank 30-80 for bare names, which a title cannot fix.
-- [x] 2026-10-24 OSM check: 2026-10-05 monthly run stored 148 of 148 files, all from overpass-api.de (504/429 retries, no fallback needed). The Workflow's own mirror use is not visible from GitHub.
+- [x] 2026-10-24 Titles/descriptions rewritten for county and region pages (PR #35). Search Console shows ~1,600 of the site's impressions are one Zillow CSV filename landing on /sources (pos 6, 0 clicks, not an audience worth chasing); town pages rank 30-80 for bare names, which a title cannot fix.
+- [x] 2026-10-24 OSM check (PR #35): 2026-10-05 monthly run stored 148 of 148 files, all from overpass-api.de (504/429 retries, no fallback needed). The Workflow's own mirror use is not visible from GitHub.
