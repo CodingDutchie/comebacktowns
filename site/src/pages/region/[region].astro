@@ -37,8 +37,8 @@ const intro = [
   strongest ? `${best ? "and the strongest momentum is" : "The strongest momentum is"} ${strongest.name} (${score1(momentum[strongest.geoid].momentum)}${momentum[strongest.geoid].label ? `, ${momentum[strongest.geoid].label}` : ""}).` : ".",
   cheapest[0] && dearest ? `Median home values (ACS ${homePeriod}) run from ${formatValue("median_home_value", cheapest[0].v)} in ${cheapest[0].t.name} to ${formatValue("median_home_value", dearest.v)} in ${dearest.t.name}.` : "",
 ].filter(Boolean).join(" ").replace(/\) \./g, ").");
-const title = `${region} towns ranked by readiness and momentum (${year})`;
-const description = `All ${list.length} ${region} cities and villages with a readiness grade and momentum label from public data: the cheapest towns, the closest to New York City, towns near a train, rising towns, and every county.`;
+const title = `${region} cities and towns (${year})`;
+const description = `The ${list.length} cities and towns of New York's ${region}, ranked by readiness grade and momentum label from public data: the cheapest towns, the closest to New York City, towns near a train, rising towns, and every county.`;
 const ld = itemList(`${region} towns by readiness, ${meta.site.SITE_NAME} ${year}`, list.map((t) => ({ name: `${t.name}, NY`, path: `/town/${t.slug}` })), description);
 ---
 <Base title={title} description={description} jsonLd={ld} crumbs={[{ name: "All towns", path: "/towns" }, { name: `${region} towns`, path: regionPath(region) }]}>
