@@ -19,7 +19,7 @@ const site = meta.site;
 // Read from config/site.yml at build time, not from the export, so a fresh clone without data behaves the same.
 const analyticsToken = (config.ANALYTICS_TOKEN ?? "").trim();
 const { title, description = site.TAGLINE, jsonLd, crumbs, image = "/social-card.png", noindex = false } = Astro.props;
-const fullTitle = title ? `${title} · ${site.SITE_NAME}` : `${site.SITE_NAME} — readiness grades and momentum for New York towns`;
+const fullTitle = title ? `${title} · ${site.SITE_NAME}` : `${site.SITE_NAME}: readiness grades for New York towns`;
 // build.format "file" gives /about.html here, but the Worker serves /about and redirects the
 // .html form to it, so the canonical drops the extension to match the served URL and the sitemap.
 const canonical = new URL(Astro.url.pathname.replace(/(\/index)?\.html$/, "") || "/", Astro.site);
