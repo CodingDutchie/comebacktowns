@@ -18,6 +18,7 @@ const m = (name: string) => metric(town.geoid, name);
 const peers = towns
   .filter((t) => t.region === town.region && bandKey(t) === bandKey(town) && scores[t.geoid])
   .sort((a, b) => scores[b.geoid].readiness - scores[a.geoid].readiness);
+const countyMates = towns.filter((t) => t.county === town.county && t.geoid !== town.geoid).sort((a, b) => (b.pop_latest ?? 0) - (a.pop_latest ?? 0));
 const myRank = peers.findIndex((t) => t.geoid === town.geoid);
 const peerRows = [...peers.slice(0, 5), ...(myRank >= 5 ? [town] : [])];
 const extraMetrics = ["median_household_income", "vacancy_rate", "poverty_rate", "pre1940_share", "broadband_subscription_share", "under_18_share", "nrhp_district_count", "drive_min_nearest_hospital", "miles_to_rail_station", "population_change", "zhvi", "zori", "zhvi_change_1y", "zori_change_1y", "permits_per_1k", "permit_rate_change", "county_migration_inflow", "county_migration_outflow", "dri_award_count"];
@@ -54,7 +55,7 @@ const crumbs = [
     <div class="wrap hero-grid town">
         <div>
           <p class="small" style="margin:0 0 .4rem"><a class="quiet" href="/towns">All towns</a> › <a class="quiet" href={regionPath(town.region)}>{town.region}</a> › <a class="quiet" href={countyPath(town.county)}>{town.county} County</a></p>
-          <h1 style="margin:0">{town.name} <span class="pill">{town.legal_type}</span></h1>
+          <h1 style="margin:0">{town.name}, NY <span class="pill">{town.legal_type}</span></h1>
           <p class="muted" style="margin:.5rem 0 .3rem">Population {population(town.pop_latest)} ({town.pop_latest_year}){popText ? ` · ${popText}` : ""} · graded against towns {band(town)}</p>
           <p class="eyebrow" style="margin:0">GEOID {town.geoid} · {town.lat.toFixed(3)}, {town.lon.toFixed(3)}</p>
         </div>
@@ -135,6 +136,14 @@ const crumbs = [
         </tbody>
       </table>
     </div>
+
+    {countyMates.length > 0 && (
+      <>
+        <h2>Other places in {town.county} County</h2>
+        <p class="chips">{countyMates.map((t) => <a href={`/town/${t.slug}`}>{t.name}, NY</a>)}</p>
+        <p class="small muted">All of {town.county} County: <a href={countyPath(town.county)}>towns ranked by readiness</a> · <a href={regionPath(town.region)}>all {town.region} towns</a>.</p>
+      </>
+    )}
 
     <div class="row-between"><h2 id="sources">Sources for this page</h2><span class="muted small">the key is the exact snapshot in our archive</span></div>
     <div class="table-wrap">
