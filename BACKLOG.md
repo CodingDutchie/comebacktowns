@@ -8,7 +8,6 @@ Model tag = suggested model for the job. Source: portfolio triage of 21 Oct 2026
 
 ## Ready (found 2026-10-24)
 
-- [ ] [Sonnet] Decide whether /sources should be noindex or retitled: it ranks top 6 for Zillow CSV filenames with no clicks
 
 ## Needs Emory (decisions, accounts, money, Search Console, outreach)
 
@@ -22,6 +21,7 @@ Model tag = suggested model for the job. Source: portfolio triage of 21 Oct 2026
 
 ## Done
 
+- [x] 2026-10-25 /sources stays indexed (decision, no code change). It is the provenance page every town page, the footer and llms.txt point to, and it lists the real source URLs, including the Zillow CSV links people search for. Its 0-click impressions cost nothing: they only drag the site-wide CTR figure down, and noindex would remove the page that backs the site's claims. Revisit only if Search Console shows it displacing a page that should rank.
 - [x] 2026-10-25 Town pages: H1 now "Name, NY" (matches "port jervis ny"-style queries) and an "Other places in X County" link block on every town page (PR #36). The "what is X" lead already exists as the first summary sentence. Rankings of 30-80 mostly reflect a five-week-old domain, so expect little movement; re-read Search Console around 21 Nov with the county/region titles.
 - [x] 2026-10-24 Titles/descriptions rewritten for county and region pages (PR #35). Search Console shows ~1,600 of the site's impressions are one Zillow CSV filename landing on /sources (pos 6, 0 clicks, not an audience worth chasing); town pages rank 30-80 for bare names, which a title cannot fix.
 - [x] 2026-10-24 OSM check (PR #35): 2026-10-05 monthly run stored 148 of 148 files, all from overpass-api.de (504/429 retries, no fallback needed). The Workflow's own mirror use is not visible from GitHub.
