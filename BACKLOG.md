@@ -22,6 +22,6 @@ Model tag = suggested model for the job. Source: portfolio triage of 21 Oct 2026
 
 ## Done
 
-- [x] 2026-10-25 Town pages: H1 now "Name, NY" (matches "port jervis ny"-style queries) and an "Other places in X County" link block on every town page (PR pending). The "what is X" lead already exists as the first summary sentence. Rankings of 30-80 mostly reflect a five-week-old domain, so expect little movement; re-read Search Console around 21 Nov with the county/region titles.
+- [x] 2026-10-25 Town pages: H1 now "Name, NY" (matches "port jervis ny"-style queries) and an "Other places in X County" link block on every town page (PR #36). The "what is X" lead already exists as the first summary sentence. Rankings of 30-80 mostly reflect a five-week-old domain, so expect little movement; re-read Search Console around 21 Nov with the county/region titles.
 - [x] 2026-10-24 Titles/descriptions rewritten for county and region pages (PR #35). Search Console shows ~1,600 of the site's impressions are one Zillow CSV filename landing on /sources (pos 6, 0 clicks, not an audience worth chasing); town pages rank 30-80 for bare names, which a title cannot fix.
 - [x] 2026-10-24 OSM check (PR #35): 2026-10-05 monthly run stored 148 of 148 files, all from overpass-api.de (504/429 retries, no fallback needed). The Workflow's own mirror use is not visible from GitHub.
