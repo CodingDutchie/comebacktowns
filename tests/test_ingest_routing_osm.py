@@ -158,7 +158,7 @@ def test_osm_fetch_posts_query_and_stores_elements(local_store: LocalStore):
         return httpx.Response(
             200,
             json={
-                "osm3s": {"timestamp_osm_base": "2026-09-01T00:00:00Z"},
+                "osm3s": {"timestamp_osm_base": "2026-09-17T00:00:00Z"},
                 "elements": [{"type": "node", "id": 1, "tags": {"shop": "bakery"}}],
             },
         )
@@ -177,7 +177,7 @@ def test_osm_fetch_posts_query_and_stores_elements(local_store: LocalStore):
 
 
 OK_PAYLOAD = {
-    "osm3s": {"timestamp_osm_base": "2026-09-01T00:00:00Z"},
+    "osm3s": {"timestamp_osm_base": "2026-09-17T00:00:00Z"},
     "elements": [{"type": "node", "id": 1, "tags": {"shop": "bakery"}}],
 }
 
@@ -265,6 +265,64 @@ def test_osm_bad_query_does_not_try_other_servers(monkeypatch):
             backoff=0,
         )
     assert hosts == ["primary.test"]
+
+
+def _payload_with_base(base: str) -> dict:
+    return {
+        "osm3s": {"timestamp_osm_base": base},
+        "elements": [{"type": "node", "id": 1, "tags": {"shop": "x"}}],
+    }
+
+
+def test_osm_stale_replica_moves_to_the_next_server():
+    """2 Nov 2026: a mirror answered 200 with data from 2026-08-10; it must not be stored."""
+    hosts = []
+
+    def handler(request):
+        hosts.append(request.url.host)
+        base = (
+            "2026-08-10T00:10:23Z" if request.url.host == "stale.test" else "2026-11-02T18:40:18Z"
+        )
+        return httpx.Response(200, json=_payload_with_base(base))
+
+    payload, url = osm.ask(
+        httpx.Client(transport=httpx.MockTransport(handler)),
+        ["https://stale.test/x", "https://fresh.test/x"],
+        "q",
+        "x",
+        retries=0,
+        backoff=0,
+        as_of="2026-11-02",
+        max_base_age_days=14,
+    )
+    assert hosts == ["stale.test", "fresh.test"]
+    assert url == "https://fresh.test/x"
+    assert payload["osm3s"]["timestamp_osm_base"].startswith("2026-11-02")
+
+
+def test_osm_every_server_stale_stops_the_run():
+    def handler(request):
+        return httpx.Response(200, json=_payload_with_base("2026-08-10T00:10:23Z"))
+
+    with pytest.raises(RuntimeError, match="stale"):
+        osm.ask(
+            httpx.Client(transport=httpx.MockTransport(handler)),
+            ["https://a.test/x"],
+            "q",
+            "x",
+            retries=0,
+            backoff=0,
+            as_of="2026-11-02",
+            max_base_age_days=14,
+        )
+
+
+def test_osm_stale_base_edge_cases():
+    assert osm.stale_base(_payload_with_base("2026-10-19T00:00:00Z"), "2026-11-02", 14) is None
+    assert osm.stale_base(_payload_with_base("2026-10-18T23:59:59Z"), "2026-11-02", 14)
+    # A server that omits or garbles the stamp is not treated as stale.
+    assert osm.stale_base({"elements": []}, "2026-11-02", 14) is None
+    assert osm.stale_base(_payload_with_base("x"), "2026-11-02", 14) is None
 
 
 def test_osm_servers_dedupes_and_keeps_order():

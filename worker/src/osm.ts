@@ -20,6 +20,8 @@ export interface QueriesManifest {
   min_interval_seconds: number;
   retries_per_server: number;
   backoff_seconds: number;
+  /** Optional so an older manifest still loads; the Python default is 14. */
+  max_base_age_days?: number;
   towns: TownQuery[];
 }
 
@@ -62,8 +64,8 @@ export type Classified =
   | { ok: false; retryable: boolean; reason: string };
 
 /** Mirrors the Python rules: 5xx/429/408 and a "runtime error" remark are a busy server and
- * worth a retry; any other non-2xx is a bad query; a body without elements is an error. */
-export function classify(status: number, body: string): Classified {
+ * worth a retry, as is a server whose data is older than `freshness` allows (a stalled mirror); any other non-2xx is a bad query; a body without elements is an error. */
+export function classify(status: number, body: string, freshness?: { asOf: string; maxAgeDays: number }): Classified {
   if (status === 408 || status === 425 || status === 429 || status >= 500) {
     return { ok: false, retryable: true, reason: `HTTP ${status}` };
   }
@@ -80,6 +82,14 @@ export function classify(status: number, body: string): Classified {
   if (!("elements" in payload) || remark.toLowerCase().includes("error")) {
     const busy = remark.toLowerCase().includes("runtime error");
     return { ok: false, retryable: busy, reason: remark || "no elements in response" };
+  }
+  if (freshness) {
+    const base = Date.parse(String((payload.osm3s as { timestamp_osm_base?: string } | undefined)?.timestamp_osm_base ?? ""));
+    const cutoff = Date.parse(`${freshness.asOf}T00:00:00Z`) - freshness.maxAgeDays * 86_400_000;
+    // A missing or unparseable stamp is not stale (NaN compares false), as in Python.
+    if (base < cutoff) {
+      return { ok: false, retryable: true, reason: `stale replica: data from ${new Date(base).toISOString()}` };
+    }
   }
   return { ok: true, payload };
 }

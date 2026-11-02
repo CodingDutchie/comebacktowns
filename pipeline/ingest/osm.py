@@ -22,7 +22,7 @@ from __future__ import annotations
 import json
 import logging
 from collections.abc import Callable
-from datetime import date
+from datetime import UTC, date, datetime, timedelta
 from typing import Any
 
 import httpx
@@ -77,6 +77,28 @@ def busy_remark(remark: str) -> bool:
     return "runtime error" in remark.lower()
 
 
+def stale_base(payload: dict[str, Any], as_of: str, max_age_days: float) -> str | None:
+    """A message when the answering server's data is older than ``max_age_days`` before ``as_of``.
+
+    Overpass reports the age of the database it queried in ``osm3s.timestamp_osm_base``. A
+    mirror whose replication has stalled still answers 200 with plausible elements, so the
+    snapshot would be filed under ``as_of`` while describing an older map (2 Nov 2026: 104
+    towns came back with a base of 2026-08-10). A missing or unparseable stamp is not
+    treated as stale, so a server that omits it keeps working.
+    """
+    raw = str((payload.get("osm3s") or {}).get("timestamp_osm_base", ""))
+    try:
+        base = datetime.fromisoformat(raw.replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    if base.tzinfo is None:
+        base = base.replace(tzinfo=UTC)
+    cutoff = datetime.fromisoformat(as_of).replace(tzinfo=UTC) - timedelta(days=max_age_days)
+    if base < cutoff:
+        return f"data is from {raw}, more than {max_age_days:g} days before {as_of}"
+    return None
+
+
 def ask(
     client: httpx.Client,
     urls: list[str],
@@ -85,12 +107,15 @@ def ask(
     *,
     retries: int,
     backoff: float,
+    as_of: str | None = None,
+    max_base_age_days: float | None = None,
 ) -> tuple[dict[str, Any], str]:
     """POST ``query`` to each server in turn until one answers with elements.
 
     A retryable status or a transport error exhausts that server's retries and moves on;
     a non-retryable status (a malformed query) raises at once, since another server would
-    say the same. Returns the payload and the URL that produced it.
+    say the same. A server whose data is older than ``max_base_age_days`` before ``as_of``
+    is skipped like a busy one. Returns the payload and the URL that produced it.
     """
     last: Exception | None = None
     for url in urls:
@@ -117,6 +142,14 @@ def ask(
                 log.warning("osm: %s: %s said %r, trying the next server", slug, host, message)
                 continue
             raise RuntimeError(f"osm: {slug}: {message}")
+        if as_of and max_base_age_days is not None:
+            stale = stale_base(payload, as_of, max_base_age_days)
+            if stale:
+                last = RuntimeError(f"osm: {slug}: {host} is stale: {stale}")
+                log.warning(
+                    "osm: %s: %s is a stale replica (%s), trying the next server", slug, host, stale
+                )
+                continue
         return payload, url
     raise RuntimeError(f"osm: {slug}: every Overpass server failed; last: {last}") from last
 
@@ -161,6 +194,7 @@ def queries_manifest(
         "min_interval_seconds": float(entry["min_interval_seconds"]),
         "retries_per_server": int(entry.get("retries_per_server", 3)),
         "backoff_seconds": float(entry.get("backoff_seconds", 15.0)),
+        "max_base_age_days": float(entry.get("max_base_age_days", 14)),
         "towns": town_queries(entry, towns, polygons),
     }
 
@@ -222,6 +256,8 @@ def fetch(
                 town.slug,
                 retries=int(entry.get("retries_per_server", 3)),
                 backoff=float(entry.get("backoff_seconds", 15.0)),
+                as_of=as_of_str,
+                max_base_age_days=float(entry.get("max_base_age_days", 14)),
             )
             document = {
                 "geoid": town.geoid,

@@ -52,6 +52,21 @@ describe("classify", () => {
   });
 });
 
+describe("classify freshness", () => {
+  const fresh = { asOf: "2026-11-02", maxAgeDays: 14 };
+  const body = (base: string) => JSON.stringify({ osm3s: { timestamp_osm_base: base }, elements: [{ type: "node", id: 1, tags: { shop: "x" } }] });
+  it("retries a stalled mirror whose data predates the window, so the next server is asked", () => {
+    expect(classify(200, body("2026-08-10T00:10:23Z"), fresh)).toMatchObject({ ok: false, retryable: true });
+    expect(classify(200, body("2026-11-02T18:40:18Z"), fresh).ok).toBe(true);
+    expect(classify(200, body("2026-10-19T00:00:00Z"), fresh).ok).toBe(true);
+    expect(classify(200, body("2026-10-18T23:59:59Z"), fresh).ok).toBe(false);
+  });
+  it("does not treat a missing or unparseable stamp as stale", () => {
+    expect(classify(200, body("x"), fresh).ok).toBe(true);
+    expect(classify(200, JSON.stringify({ elements: [] }), fresh).ok).toBe(true);
+  });
+});
+
 describe("document and sidecar", () => {
   it("matches the Python shapes field for field", async () => {
     const payload = { osm3s: { timestamp_osm_base: "2026-10-01T00:00:00Z" }, elements: [{ type: "node", id: 1, tags: { shop: "bakery" } }] };
