@@ -142,6 +142,10 @@ osm:
   workflow_servers:
     - https://overpass.openstreetmap.fr/api/interpreter
     - https://z.overpass-api.de/api/interpreter
+  # A server whose data (osm3s.timestamp_osm_base) is older than this many days before the
+  # snapshot date is treated like a busy one and the next server is asked. A stalled mirror
+  # served an August replica for 104 towns on 2 Nov 2026.
+  max_base_age_days: 14
   retries_per_server: 3
   backoff_seconds: 15
   min_interval_seconds: 2.0

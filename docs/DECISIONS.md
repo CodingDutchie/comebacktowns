@@ -112,6 +112,15 @@ New decisions go here; rules that must hold in every session go in CLAUDE.md ("R
   applicable to award winners). Grades are percentile curves within the two population
   bands; coverage under 60% means no grade. Every `score` run appends rows keyed on
   `computed_at`, so history is kept.
+- **OSM answers must be fresh (2 Nov 2026).** Overpass reports the age of the database it
+  queried in `osm3s.timestamp_osm_base`. On 2 Nov the Workflow's first server,
+  overpass.openstreetmap.fr, answered 104 towns with a base of 2026-08-10 (its October
+  answers were current), so a snapshot filed as 2026-11 held a three-month-old map, and
+  Saugerties and Nyack jumped +3.9 and +4.9 points. QA rule 4 caught it, correctly. Both the
+  Python ingest and the Workflow now treat a server whose base is older than
+  `max_base_age_days` (14, `config/sources.yml`) before the snapshot date like a busy one and
+  ask the next server; if every server is stale the run stops. A missing or unparseable stamp
+  is not treated as stale. Files already stored before this guard are not rewritten by it.
 - **QA rule 4** compares `readiness` in `seed/pilot_v0.csv` (columns `geoid` or `slug` and
   `readiness`; a blank `readiness` marks a reference-only row) with the engine at ±3 points.
   `score --no-pilot` only covers a missing fixture; drift always stops the run.

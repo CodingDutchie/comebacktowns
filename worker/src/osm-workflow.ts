@@ -54,7 +54,7 @@ export class OsmWorkflow extends WorkflowEntrypoint<OsmEnv, OsmParams> {
             headers: { "Content-Type": "application/x-www-form-urlencoded", "User-Agent": "Comeback Towns/0.1 (+https://comebacktowns.com; data@comebacktowns.com)" },
             body: new URLSearchParams({ data: town.query }),
           });
-          const verdict = classify(response.status, await response.text());
+          const verdict = classify(response.status, await response.text(), { asOf, maxAgeDays: manifest.max_base_age_days ?? 14 });
           if (!verdict.ok) {
             const message = `osm: ${town.slug} @ ${new URL(server).host}: ${verdict.reason}`;
             if (verdict.retryable) throw new Error(message);
