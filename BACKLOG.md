@@ -17,10 +17,13 @@ Model tag = suggested model for the job. Source: portfolio triage of 21 Oct 2026
 
 ## Waiting (time-bound)
 
-- [ ] Confirm the first scheduled OSM Workflow run (2 Nov 2026, 03:00 UTC) stored 148 files and which mirror answered  _(needs R2 listing or Workflow logs; the GitHub trigger job only starts the instance)_
+- [ ] Confirm the first OSM Workflow instance (started by the next refresh-monthly, 2 Dec 2026) stored 148 files and which mirror answered  _(R2 listing or Workflow logs; the 2 Nov 03:00 schedule never fired because Workflows have no schedules key)_
+- [ ] Verify `wrangler workflows instances describe` output matches the wait step's `status` parse on the first real run (a manual osm-workflow dispatch after merge is enough)
 - [ ] Re-read Search Console for /county/* and /region/* about 4 weeks after the title change ships (baseline: Westchester pos 10.4, Mohawk Valley pos 11.3)
 
 ## Done
+
+- [x] 2026-11-02 Monthly refresh no longer depends on silent schedulers: removed the ignored Workflows `schedules` key, refresh-monthly starts and waits for the OSM Workflow, second cron slot with guard, `refresh-watchdog.yml` on the 3rd. Next `wrangler deploy` drops the key from config (harmless until then). PR pending.
 
 - [x] 2026-10-25 Home page title shortened from 65 to 51 characters (launch-check R7), PR pending. launch-check on the live site otherwise passes: 0 fail. Still open: R8 reports no Web Analytics page loads in 14 days (see Needs Emory).
 - [x] 2026-10-25 /sources stays indexed (decision, no code change). It is the provenance page every town page, the footer and llms.txt point to, and it lists the real source URLs, including the Zillow CSV links people search for. Its 0-click impressions cost nothing: they only drag the site-wide CTR figure down, and noindex would remove the page that backs the site's claims. Revisit only if Search Console shows it displacing a page that should rank.

@@ -1,0 +1,42 @@
+name: refresh-watchdog
+
+# The 3rd of the month: if refresh-monthly has no successful run this month (GitHub skipped
+# both cron slots, or every run failed), open or update a refresh-failure issue. It runs on
+# GitHub's cron too, so it cannot catch GitHub being down all day, only a missed slot.
+on:
+  schedule:
+    - cron: "30 10 3 * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+  issues: write
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    outputs:
+      missing: ${{ steps.runs.outputs.missing }}
+    steps:
+      - id: runs
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const now = new Date();
+            const monthStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1)).toISOString();
+            const { data } = await github.rest.actions.listWorkflowRuns({
+              owner: context.repo.owner, repo: context.repo.repo,
+              workflow_id: "refresh-monthly.yml", status: "success", created: `>=${monthStart}`, per_page: 5,
+            });
+            core.info(`successful refresh-monthly runs since ${monthStart}: ${data.total_count}`);
+            core.setOutput("missing", data.total_count === 0 ? "true" : "false");
+  report:
+    needs: check
+    if: needs.check.outputs.missing == 'true'
+    uses: ./.github/workflows/report-failure.yml
+    with:
+      workflow_name: refresh-monthly
+      failed_step: no successful run this month
+      message: "**refresh-monthly** has no successful run this month, so the data was not refreshed. Either GitHub skipped both scheduled slots or every run failed. Dispatch refresh-monthly by hand (or fix the failing run linked from the earlier issue)."
+    secrets: inherit

@@ -71,21 +71,37 @@ New decisions go here; rules that must hold in every session go in CLAUDE.md ("R
 - **The OSM queries run as a Cloudflare Workflow ahead of the refresh.** The 148 Overpass
   queries were the slow, flaky half-hour of every monthly run, and one GitHub runner
   shutdown (2026-10-05) killed a whole run mid-way. `worker/src/osm-workflow.ts`
-  (`OsmWorkflow`, binding `OSM_WORKFLOW`, schedule `0 3 2 * *` in `wrangler.toml`) runs
+  (`OsmWorkflow`, binding `OSM_WORKFLOW`) runs
   each town as one durable step with its own retries, attempt n on server n of the
   manifest's list, and writes the same document and `.meta.json` sidecar under the same
   `raw/osm/{as_of}/` keys as the Python ingest (pure logic in `worker/src/osm.ts`, tested).
   It reads `raw/osm-queries/{as_of}/queries.json`, which `pipeline.cli osm-queries` publishes
   from the TIGER snapshot (`refresh.yml` does this after every ingest), so the polygon and
-  query logic lives in Python only. `refresh-monthly.yml` keeps `osm` in its sources: six
-  hours later the Python ingest finds the files present, skips them, and fills any the
+  query logic lives in Python only. `refresh-monthly.yml` keeps `osm` in its sources: after
+  the Workflow the Python ingest finds the files present, skips them, and fills any the
   Workflow missed, so neither path depends on the other succeeding. Workers Free covers it
-  (one instance a month, 150 steps). Seed or re-run with `osm-workflow.yml`. The Workflow
+  (one instance a month, 150 steps). Seed or re-run with `osm-workflow.yml` (see the next entry for what starts it). The Workflow
   uses `workflow_servers` from `config/sources.yml`, not the Python list: from Cloudflare's
   edge `overpass-api.de` refuses connections (HTTP 521) and `overpass.kumi.systems` times
   out, while `overpass.openstreetmap.fr` and `z.overpass-api.de` answer (probed with a
   throwaway Worker on 2026-10-06, then deleted). All are mirrors of the same OpenStreetMap
   database; the document records which one answered.
+- **One scheduler starts everything: the GitHub refresh (2026-11-02).** No refresh-monthly
+  run fired on 2 Nov and the OSM Workflow had never had an instance: the `schedules` key
+  under `[[workflows]]` is not a Workflows setting (Workflows are started by the binding,
+  the API or wrangler), so it was silently ignored. Rather than keep two independent
+  clocks, the key is removed and `refresh-monthly.yml` calls `osm-workflow.yml` as a
+  reusable workflow (`wrangler workflows trigger`, then polls `instances describe` for up to
+  80 minutes) before `refresh.yml`. The wait never fails the run: a timeout or an errored
+  instance is a warning, because the Python ingest fills any town the Workflow missed. A
+  Worker cron trigger that calls `env.OSM_WORKFLOW.create()` was the alternative; rejected
+  as a second scheduler needing its own deploy and its own failure mode. GitHub's cron is
+  itself unreliable, so `refresh-monthly` has two slots (09:00 and 15:00 UTC on the 2nd)
+  with a `guard` job that skips a scheduled run when a run of the workflow already
+  succeeded this UTC month (manual dispatch always runs), and `refresh-watchdog.yml`
+  (10:30 UTC on the 3rd) opens a `refresh-failure` issue through `report-failure.yml` if
+  there is no successful run that month. The watchdog also rides GitHub's cron: it catches
+  a missed slot, not a day-long GitHub outage.
 - **Outbound HTTP is pinned to IPv4** (`make_client` binds `0.0.0.0`): a GitHub runner
   reached Overpass over IPv6 without a route and the run died with "Network is unreachable".
 - **Scoring (Phase 3).** Weights and grade bands live in `config/scoring.v1.yml`; the curves
