@@ -40,9 +40,9 @@ binding = "CACHE"
 id = "71c980ce6d104bf7be0135c8fd11fa6c"
 
 # The OSM Workflow: the Overpass queries as durable steps with per-step retries. Started by
-# the GitHub refresh (.github/workflows/osm-workflow.yml, called from refresh-monthly, which
-# waits for it). It has no schedule here: Workflows have no `schedules` setting, so one
-# silently did nothing. See docs/DECISIONS.md.
+# the refresh orchestrator (orchestrator/, a separate Worker that binds this Workflow by
+# script_name) as one stage of the monthly refresh; osm-workflow.yml starts it by hand. It has
+# no `schedules` here on purpose, see docs/DECISIONS.md.
 [[workflows]]
 name = "comebacktowns-osm"
 binding = "OSM_WORKFLOW"

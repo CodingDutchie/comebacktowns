@@ -1,0 +1,12 @@
+.git
+.venv
+**/node_modules
+**/__pycache__
+data/
+site/dist
+site/data
+orchestrator
+worker
+docs
+tests
+*.csv

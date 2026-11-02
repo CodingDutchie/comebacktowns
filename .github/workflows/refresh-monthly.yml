@@ -4,13 +4,9 @@ name: refresh-monthly
 # Everything is validated before anything is written: transform and score run dry first;
 # only when both pass are metrics and scores loaded and the site published. A failure at
 # any step opens (or updates) an issue naming the failing source, and nothing is published.
+# NOT scheduled any more: the Cloudflare orchestrator (orchestrator/, docs/DECISIONS.md) runs this
+# on its own cron. Kept as a manual fallback that produces the same result.
 on:
-  schedule:
-    # GitHub drops scheduled runs now and then (none fired on 2 Nov 2026), so there are two
-    # slots; the guard job skips the second when the month already has a successful refresh.
-    # refresh-watchdog.yml opens an issue on the 3rd if neither produced one.
-    - cron: "0 9 2 * *"
-    - cron: "0 15 2 * *"
   workflow_dispatch:
     inputs:
       skip_pilot:

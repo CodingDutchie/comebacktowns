@@ -86,22 +86,35 @@ New decisions go here; rules that must hold in every session go in CLAUDE.md ("R
   out, while `overpass.openstreetmap.fr` and `z.overpass-api.de` answer (probed with a
   throwaway Worker on 2026-10-06, then deleted). All are mirrors of the same OpenStreetMap
   database; the document records which one answered.
-- **One scheduler starts everything: the GitHub refresh (2026-11-02).** No refresh-monthly
-  run fired on 2 Nov and the OSM Workflow had never had an instance: the `schedules` key
-  under `[[workflows]]` is not a Workflows setting (Workflows are started by the binding,
-  the API or wrangler), so it was silently ignored. Rather than keep two independent
-  clocks, the key is removed and `refresh-monthly.yml` calls `osm-workflow.yml` as a
-  reusable workflow (`wrangler workflows trigger`, then polls `instances describe` for up to
-  80 minutes) before `refresh.yml`. The wait never fails the run: a timeout or an errored
-  instance is a warning, because the Python ingest fills any town the Workflow missed. A
-  Worker cron trigger that calls `env.OSM_WORKFLOW.create()` was the alternative; rejected
-  as a second scheduler needing its own deploy and its own failure mode. GitHub's cron is
-  itself unreliable, so `refresh-monthly` has two slots (09:00 and 15:00 UTC on the 2nd)
-  with a `guard` job that skips a scheduled run when a run of the workflow already
-  succeeded this UTC month (manual dispatch always runs), and `refresh-watchdog.yml`
-  (10:30 UTC on the 3rd) opens a `refresh-failure` issue through `report-failure.yml` if
-  there is no successful run that month. The watchdog also rides GitHub's cron: it catches
-  a missed slot, not a day-long GitHub outage.
+- **The refresh runs on Cloudflare, not GitHub Actions (2026-11-02).** The repo is private, so
+  Actions minutes are limited, and GitHub's cron was unreliable (the 2 Nov monthly run
+  started about ten hours late). `orchestrator/` is a separate Worker, `comebacktowns-refresh`:
+  Worker cron triggers start a `RefreshWorkflow` (the plan in `orchestrator/src/plan.ts`:
+  monthly, annual, discover), which runs each stage as one durable step. Python stages run in
+  a Cloudflare Container (`container/`, `standard-2`, `max_instances = 1`) that serves a
+  whitelisted job API (`container/jobs.py`, `server.py`); the OSM stage starts the existing
+  `comebacktowns-osm` Workflow in the site Worker and polls `instance.status()`, and the Python
+  ingest after it still fills any town it missed. Publishing (export, site build,
+  `wrangler deploy` of the site Worker, KV purge, smoke checks) is `container/publish.sh`,
+  run in the container, which deploys the *site* Worker so the orchestrator never redeploys
+  itself. The Python rewrite in TypeScript was rejected (scoring risk); Python Workers cannot
+  host polars and shapely. Rules carried over unchanged: ingest sources run one at a time so
+  a failure names its source, everything is validated dry (transform, score with QA rule 4,
+  momentum) before anything is loaded, a failed stage stops the run, and loads and publish
+  never retry. Idempotency: the instance id is `monthly-YYYY-MM` (or `annual-YYYY`,
+  `discover-YYYY-MM`), so the second monthly cron slot and any double fire are refused. A
+  watchdog cron on the 3rd checks the success marker in KV (`refresh:ok:*`). A failure opens
+  a `refresh-failure` issue through the GitHub API when the optional `GITHUB_TOKEN` secret is
+  set, otherwise it is logged and visible in the Workflows dashboard. Cost: Containers bill
+  per 10 ms of use against the Workers Paid allowance (25 GiB-hours memory, 375 vCPU-minutes);
+  a monthly run is a few minutes of one instance. The GitHub `refresh-*`/`discover-years`
+  workflows keep `workflow_dispatch` only, as a manual fallback; `ci.yml` stays on GitHub.
+  **Correction to the entry that preceded this one:** it said Workflows have no `schedules`
+  key. Cloudflare's docs now list `schedules` on the workflow binding, so that was wrong; why
+  the 2 Nov 03:00 schedule never produced an instance is unexplained (the key had been
+  deployed since 2026-10-06; it may postdate that wrangler release). The orchestrator
+  deliberately uses Worker cron triggers plus a deterministic instance id instead, and
+  `wrangler.toml` no longer carries `schedules`.
 - **Outbound HTTP is pinned to IPv4** (`make_client` binds `0.0.0.0`): a GitHub runner
   reached Overpass over IPv6 without a route and the run died with "Network is unreachable".
 - **Scoring (Phase 3).** Weights and grade bands live in `config/scoring.v1.yml`; the curves

@@ -25,6 +25,8 @@ uv run python -m pipeline.cli export                 # D1 -> site/data/*.json + 
 cd site && npm ci && npm run check && npm run build  # Astro static build -> site/dist
 cd worker && npm ci && npm run check && npm test    # API worker (pure logic unit-tested)
 npx wrangler deploy                                  # site/dist + /api/* as one Worker
+cd orchestrator && npm ci && npm run check && npm test   # refresh orchestrator (cron + Workflow + Container)
+cd orchestrator && npx wrangler deploy               # needs Docker; see docs/DECISIONS.md
 ```
 
 Environment the pipeline reads (never defaults, never literals):

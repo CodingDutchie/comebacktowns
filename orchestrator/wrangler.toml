@@ -1,0 +1,58 @@
+# The refresh orchestrator: a cron trigger starts a Workflow that runs the Python pipeline
+# in a Cloudflare Container, one stage at a time, and publishes the site. It replaces the
+# GitHub refresh-*, discover-years, publish (deploy) and report-failure workflows; see
+# docs/DECISIONS.md. The site + API Worker stays in ../wrangler.toml and is deployed *by*
+# the publish stage, so the container never redeploys itself.
+#
+# Secrets (wrangler secret put, never committed): CLOUDFLARE_API_TOKEN, CLOUDFLARE_ACCOUNT_ID,
+# CENSUS_API_KEY. Optional: GITHUB_TOKEN (issues:write on this repo) so a failed run opens a
+# refresh-failure issue; without it a failure is only logged and shown in the dashboard.
+name = "comebacktowns-refresh"
+main = "src/index.ts"
+compatibility_date = "2026-09-01"
+workers_dev = false
+
+[observability]
+enabled = true
+
+[vars]
+GITHUB_REPO = "CodingDutchie/comebacktowns"
+
+# Fire times (UTC). Two monthly slots are harmless: the Workflow instance id is
+# monthly-YYYY-MM, so a second creation is refused. The 10:30 slot on the 3rd is the watchdog.
+[triggers]
+crons = ["0 9 2 * *", "0 15 2 * *", "0 9 3 * *", "30 10 3 * *", "0 9 15 1 *"]
+
+[[workflows]]
+name = "comebacktowns-refresh"
+binding = "REFRESH_WORKFLOW"
+class_name = "RefreshWorkflow"
+
+# The Overpass queries Workflow lives in the site Worker (../worker/src/osm-workflow.ts).
+[[workflows]]
+name = "comebacktowns-osm"
+binding = "OSM_WORKFLOW"
+class_name = "OsmWorkflow"
+script_name = "comebacktowns"
+
+# Reuses the site Worker's KV namespace for run markers (keys under refresh:).
+[[kv_namespaces]]
+binding = "STATE"
+id = "71c980ce6d104bf7be0135c8fd11fa6c"
+
+# One-shot batch jobs, not a server farm: one instance, standard-2 (1 vCPU, 6 GiB) so polars
+# and shapely fit. The image build context is the repo root (the pipeline reads config/ and seed/).
+[[containers]]
+class_name = "Pipeline"
+image = "../container/Dockerfile"
+image_build_context = ".."
+instance_type = "standard-2"
+max_instances = 1
+
+[[durable_objects.bindings]]
+name = "PIPELINE"
+class_name = "Pipeline"
+
+[exports.Pipeline]
+type = "durable-object"
+storage = "sqlite"

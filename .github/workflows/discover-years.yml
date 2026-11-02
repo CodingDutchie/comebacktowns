@@ -4,9 +4,9 @@ name: discover-years
 # calendars (spring and late in the year). This probes for years newer than the ones in
 # config/sources.yml, and when one has appeared, pulls that source, revalidates and
 # republishes, exactly like a scheduled refresh. When nothing is new it does nothing.
+# NOT scheduled any more: the Cloudflare orchestrator (orchestrator/, docs/DECISIONS.md) runs this
+# on its own cron. Kept as a manual fallback that produces the same result.
 on:
-  schedule:
-    - cron: "0 9 3 * *" # 3rd of the month, 09:00 UTC, the day after the monthly refresh
   workflow_dispatch:
 
 permissions:

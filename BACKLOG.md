@@ -11,9 +11,15 @@ Model tag = suggested model for the job. Source: portfolio triage of 21 Oct 2026
 
 ## Needs Emory (decisions, accounts, money, Search Console, outreach)
 
+- [ ] Cloudflare orchestrator go-live: `cd orchestrator && npx wrangler secret put CLOUDFLARE_API_TOKEN / CLOUDFLARE_ACCOUNT_ID / CENSUS_API_KEY` (and optionally `GITHUB_TOKEN`, issues:write on this repo, for failure issues), then `npx wrangler deploy` (needs Docker locally to build the image), then one manual `npx wrangler workflows trigger comebacktowns-refresh '{"kind":"monthly"}'`. The API token needs Workers/Containers/Workflows edit, D1, R2 and KV. Check usage in the Containers dashboard after the first run  _(owner: account access)_
+
 - [ ] Check Cloudflare Web Analytics for comebacktowns.com: launch-check (2026-10-25) says no page loads in 14 days although every page carries the beacon (token 27ba39…). Confirm the token belongs to this site's Web Analytics entry  _(Cloudflare dashboard)_
 - [ ] Request indexing on key pages as alternate canonicals fall  _(Search Console session)_
 - [ ] Expand beyond NY? (once NY pages earn traffic)  _(Decisions)_
+
+## Ready (found 2026-11-02)
+
+- [ ] QA rule 4 stops the monthly score dry run: saugerties-ny drift +3.9 exceeds the ±3 limit (run 41509840815, 2 Nov). Needs Emory's call: re-baseline the pilot fixture or investigate the town  _(Opus)_
 
 ## Waiting (time-bound)
 
@@ -22,6 +28,8 @@ Model tag = suggested model for the job. Source: portfolio triage of 21 Oct 2026
 - [ ] Re-read Search Console for /county/* and /region/* about 4 weeks after the title change ships (baseline: Westchester pos 10.4, Mohawk Valley pos 11.3)
 
 ## Done
+
+- [x] 2026-11-02 Refresh moved to a Cloudflare orchestrator (Workflow + Container + cron triggers, watchdog); GitHub refresh workflows are manual-only fallbacks. PR pending; not live until deployed (see Needs Emory).
 
 - [x] 2026-11-02 Monthly refresh no longer depends on silent schedulers: removed the ignored Workflows `schedules` key, refresh-monthly starts and waits for the OSM Workflow, second cron slot with guard, `refresh-watchdog.yml` on the 3rd. Next `wrangler deploy` drops the key from config (harmless until then). PR pending.
 
