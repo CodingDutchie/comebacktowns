@@ -13,6 +13,10 @@ on:
       failed_step:
         type: string
         default: ""
+      message:
+        type: string
+        default: ""
+        description: "Replaces the default body sentence (used by the watchdog)"
 
 permissions:
   issues: write
@@ -26,14 +30,15 @@ jobs:
           WORKFLOW_NAME: ${{ inputs.workflow_name }}
           FAILED_SOURCE: ${{ inputs.failed_source }}
           FAILED_STEP: ${{ inputs.failed_step }}
+          MESSAGE: ${{ inputs.message }}
         with:
           script: |
-            const { WORKFLOW_NAME, FAILED_SOURCE, FAILED_STEP } = process.env;
+            const { WORKFLOW_NAME, FAILED_SOURCE, FAILED_STEP, MESSAGE } = process.env;
             const runUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
             const what = FAILED_SOURCE ? `source \`${FAILED_SOURCE}\`` : `step \`${FAILED_STEP || "unknown"}\``;
             const title = `${WORKFLOW_NAME} failed: ${FAILED_SOURCE || FAILED_STEP || "see run"}`;
             const body = [
-              `The **${WORKFLOW_NAME}** refresh stopped at ${what} and published nothing.`,
+              MESSAGE || `The **${WORKFLOW_NAME}** refresh stopped at ${what} and published nothing.`,
               ``,
               `Run: ${runUrl}`,
               ``,
