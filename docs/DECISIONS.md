@@ -116,11 +116,21 @@ New decisions go here; rules that must hold in every session go in CLAUDE.md ("R
   queried in `osm3s.timestamp_osm_base`. On 2 Nov the Workflow's first server,
   overpass.openstreetmap.fr, answered 104 towns with a base of 2026-08-10 (its October
   answers were current), so a snapshot filed as 2026-11 held a three-month-old map, and
-  Saugerties and Nyack jumped +3.9 and +4.9 points. QA rule 4 caught it, correctly. Both the
+  Saugerties and Nyack jumped +3.9 and +4.9 points. QA rule 4 caught it, correctly (the
+  Saugerties drift turned out to be genuine; see the next entry). Both the
   Python ingest and the Workflow now treat a server whose base is older than
   `max_base_age_days` (14, `config/sources.yml`) before the snapshot date like a busy one and
   ask the next server; if every server is stale the run stops. A missing or unparseable stamp
   is not treated as stale. Files already stored before this guard are not rewritten by it.
+- **Saugerties re-baselined (6 Nov 2026).** With every server fresh (Nov 2 and Nov 6
+  snapshots, main server, current base dates) Saugerties still drifted +3.9: its
+  OpenStreetMap business elements went from 49 (Sep 18, Oct 5 and Oct 6 snapshots alike) to
+  67 (Nov 2 and Nov 6 alike), 18 businesses mapped during October. Readiness 49.9 -> 53.8,
+  all of it `osm_business_per_1k` (12.65 -> 17.29 per 1,000). Real map edits, not a feed
+  fault, and the method is unchanged, so the owner chose on 2026-11-06 to set the fixture's
+  `readiness` for saugerties-ny to the v1 output 53.8, as the fixture was first baselined in
+  September; `pilot_score` stays 53 and the rule and its ±3 are unchanged. The November data
+  was otherwise identical in coverage (8,687 rows) and published after this.
 - **QA rule 4** compares `readiness` in `seed/pilot_v0.csv` (columns `geoid` or `slug` and
   `readiness`; a blank `readiness` marks a reference-only row) with the engine at ±3 points.
   `score --no-pilot` only covers a missing fixture; drift always stops the run.

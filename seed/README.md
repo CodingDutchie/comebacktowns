@@ -14,5 +14,8 @@ The 20 rows are the towns the owner scored by hand during research
 - the remaining columns are the research inputs and the pilot's own five factor scores
   (access, head, char, civic, stress), also reference only.
 
-Re-baseline only with the owner's decision, and only after a methodology change that is
-published as a new `config/scoring.*.yml` version.
+Re-baseline only with the owner's decision: after a methodology change that is published
+as a new `config/scoring.*.yml` version, or for one row when a drift is traced to a genuine
+change in that town's inputs, verified in the raw snapshots and recorded in
+`docs/DECISIONS.md` (Saugerties, 2026-11-06: 18 businesses mapped in OpenStreetMap during
+October, readiness 49.9 -> 53.8).
