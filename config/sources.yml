@@ -136,9 +136,13 @@ osm:
   # above answers 504 or "runtime error" through retries_per_server attempts.
   fallback_urls:
     - https://overpass.kumi.systems/api/interpreter
-  # The servers the OSM Workflow uses from Cloudflare's edge, in order. overpass-api.de
-  # refuses connections from Workers (HTTP 521) and kumi.systems times out there, while
-  # these mirrors of the same OpenStreetMap database answer (probed 2026-10-06).
+  # The servers the OSM Workflow uses from Cloudflare's edge, in order. The Workflow probes
+  # each one first and uses only those that answer with a current base and New York data;
+  # with none usable it completes at once and the Python ingest (from GitHub, which reaches
+  # overpass-api.de) does the whole pass. Probed from a Worker on 2026-10-06: these two
+  # answered while overpass-api.de refused (HTTP 521) and kumi.systems timed out. Probed
+  # again 2026-11-06: openstreetmap.fr answered from an August replica, z.overpass-api.de
+  # 521, and every other public mirror refused, timed out or holds a regional extract.
   workflow_servers:
     - https://overpass.openstreetmap.fr/api/interpreter
     - https://z.overpass-api.de/api/interpreter

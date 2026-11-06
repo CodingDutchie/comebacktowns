@@ -5,7 +5,6 @@ Model tag = suggested model for the job. Source: portfolio triage of 21 Oct 2026
 
 ## Ready (an agent can do these)
 
-- [ ] Give the OSM Workflow a mirror it can use, or drop the head start. Every November instance errored: from Cloudflare's edge overpass.openstreetmap.fr has served a map dated 2026-08-10 since 2 Nov (rejected by the staleness guard), z.overpass-api.de and overpass-api.de answer 521, overpass.kumi.systems times out. The GitHub ingest fetched all 148 towns itself each time. Probe candidates with a throwaway Worker as on 2026-10-06; maps.mail.ru was left out before (Russian-hosted, Emory's call)  _(Sonnet)_
 
 ## Ready (found 2026-10-24)
 
@@ -24,6 +23,7 @@ Model tag = suggested model for the job. Source: portfolio triage of 21 Oct 2026
 
 ## Done
 
+- [x] 2026-11-06 OSM Workflow mirrors: probed eleven public Overpass servers from a throwaway Worker; none reachable from Cloudflare's edge serves a current global map (details in `docs/DECISIONS.md`). The Workflow now probes its servers first and completes with "no usable server" in seconds when none qualifies, so refresh-monthly loses no time and the head start returns on its own when a mirror recovers. PR #48.
 - [x] 2026-11-06 November data published (refresh-monthly run 42269967641): all 148 towns fetched fresh from overpass-api.de over two resumed runs, QA rule 4 passed, site shows readiness and momentum computed 2026-11-06. Issues #41, #42, #45 closed.
 - [x] 2026-11-06 Saugerties re-baselined in `seed/pilot_v0.csv` (49.9 → 53.8, PR #46): the +3.9 drift reproduced on fresh Nov 2 and Nov 6 snapshots; its OpenStreetMap business elements went 49 → 67 (18 mapped in October), a genuine input change. Decision in `docs/DECISIONS.md`; the fixture README names this case.
 - [x] 2026-11-06 PR #43 (orchestrator on Workers Paid + Container) closed unmerged, Emory's decision: Overpass is not reachable from Cloudflare's network, #40 already mitigates dropped cron slots, and the branch was never built or run. Revisit only if both 2 Dec slots are dropped; keep the Overpass fetch on a GitHub runner in any new shape.

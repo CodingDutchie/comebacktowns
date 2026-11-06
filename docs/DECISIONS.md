@@ -122,6 +122,19 @@ New decisions go here; rules that must hold in every session go in CLAUDE.md ("R
   `max_base_age_days` (14, `config/sources.yml`) before the snapshot date like a busy one and
   ask the next server; if every server is stale the run stops. A missing or unparseable stamp
   is not treated as stale. Files already stored before this guard are not rewritten by it.
+- **The OSM Workflow probes its servers before the towns (6 Nov 2026).** Every November
+  instance errored after eight minutes of retries: from Cloudflare's edge no public Overpass
+  server served a current map. A throwaway Worker probed eleven on 6 Nov: overpass-api.de
+  and z.overpass-api.de refuse Cloudflare (521), lz4.overpass-api.de, kumi.systems and
+  private.coffee time out, nchc.org.tw and osm.jp fail DNS there, maps.mail.ru 504,
+  openstreetmap.ru 522, osm.ch holds only Switzerland, and openstreetmap.fr answers in half a
+  second from a replica dated 2026-08-10. GitHub's runners reach overpass-api.de, which
+  fetched all 148 towns on 2 and 6 Nov. The Workflow now starts with one probe step (one
+  node from a Hudson Valley box, 20 s timeout per server) and keeps only servers that answer
+  with a base inside `max_base_age_days` and at least one element; with none it completes
+  with `status: "no usable server"` in seconds, and refresh-monthly's Python ingest does the
+  pass. The head start returns by itself when a mirror recovers; no server is substituted.
+  `workflow_servers` keeps the two that answered in October.
 - **Saugerties re-baselined (6 Nov 2026).** With every server fresh (Nov 2 and Nov 6
   snapshots, main server, current base dates) Saugerties still drifted +3.9: its
   OpenStreetMap business elements went from 49 (Sep 18, Oct 5 and Oct 6 snapshots alike) to
