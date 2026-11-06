@@ -91,7 +91,10 @@ const stamps = [
     <meta name="twitter:description" content={description} />
     <meta name="twitter:image" content={new URL(image, Astro.site)} />
     <script type="application/ld+json" set:html={ld} />
-    {analyticsToken && <script is:inline defer src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon={JSON.stringify({ token: analyticsToken })} />}
+    {/* send.to keeps the beacon first-party: it posts to this site's own /cdn-cgi/rum, which the
+        zone accepts; the default cloudflareinsights.com endpoint refuses this site's hostname
+        (a CORS failure, 0 page views recorded between 6 Oct and 6 Nov 2026). */}
+    {analyticsToken && <script is:inline defer src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon={JSON.stringify({ token: analyticsToken, send: { to: `/cdn-cgi/rum?${analyticsToken}` } })} />}
     <style is:global>
       :root {
         --bg: #f5f6f7; --card: #ffffff; --rule: #dde2e8; --rule-soft: #e6eaef; --soft: #eef1f4;
