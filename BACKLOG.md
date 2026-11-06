@@ -11,7 +11,6 @@ Model tag = suggested model for the job. Source: portfolio triage of 21 Oct 2026
 
 ## Needs Emory (decisions, accounts, money, Search Console, outreach)
 
-- [ ] Check Cloudflare Web Analytics for comebacktowns.com: launch-check (2026-10-25) says no page loads in 14 days although every page carries the beacon. The token 27ba39… was confirmed as this site's on 2026-10-06 (PR #27) and automatic setup was switched off in the dashboard on 2026-11-05, so only the page beacon reports; check whether page loads now register  _(Cloudflare dashboard)_
 - [ ] Request indexing on key pages as alternate canonicals fall  _(Search Console session)_
 - [ ] Expand beyond NY? (once NY pages earn traffic)  _(Decisions)_
 
@@ -23,6 +22,7 @@ Model tag = suggested model for the job. Source: portfolio triage of 21 Oct 2026
 
 ## Done
 
+- [x] 2026-11-06 Web Analytics recorded nothing from 6 Oct to 6 Nov: the beacon posted to cloudflareinsights.com and was refused (CORS, hostname not registered on the automatic-setup site record). It now posts first-party to the site's own /cdn-cgi/rum, which the zone accepts; verified in headless Chromium (HTTP 204) and in Cloudflare's analytics (events recorded against the site tag). Details in `docs/DECISIONS.md`. PR pending.
 - [x] 2026-11-06 OSM Workflow mirrors: probed eleven public Overpass servers from a throwaway Worker; none reachable from Cloudflare's edge serves a current global map (details in `docs/DECISIONS.md`). The Workflow now probes its servers first and completes with "no usable server" in seconds when none qualifies, so refresh-monthly loses no time and the head start returns on its own when a mirror recovers. PR #48.
 - [x] 2026-11-06 November data published (refresh-monthly run 42269967641): all 148 towns fetched fresh from overpass-api.de over two resumed runs, QA rule 4 passed, site shows readiness and momentum computed 2026-11-06. Issues #41, #42, #45 closed.
 - [x] 2026-11-06 Saugerties re-baselined in `seed/pilot_v0.csv` (49.9 → 53.8, PR #46): the +3.9 drift reproduced on fresh Nov 2 and Nov 6 snapshots; its OpenStreetMap business elements went 49 → 67 (18 mapped in October), a genuine input change. Decision in `docs/DECISIONS.md`; the fixture README names this case.

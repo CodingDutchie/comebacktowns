@@ -252,6 +252,16 @@ New decisions go here; rules that must hold in every session go in CLAUDE.md ("R
   sets no cookies, uses no local storage and does not fingerprint visitors, and `/about#not`
   says exactly that; it never says "no analytics". `publish.yml` fails the smoke check when
   the token is set and the beacon is missing from the home page.
+  **The beacon posts first-party (6 Nov 2026).** Between 6 Oct and 6 Nov Cloudflare recorded no
+  page views although every page carried the beacon with the right token: a headless Chromium
+  load showed the beacon script posting to `cloudflareinsights.com/cdn-cgi/rum` and being
+  refused (a CORS failure, no `Access-Control-Allow-Origin`), which Cloudflare's FAQ says means
+  the hostname does not match the Web Analytics site; this site's record was created for
+  automatic setup and has no hostname. The beacon script posts to the page's own
+  `/cdn-cgi/rum` when its config carries `send.to` (or a `version`, as automatic injection
+  sets), and the zone accepts that path (HTTP 204 with CORS headers, events recorded against
+  the site tag within minutes). `Base.astro` now sets `send: { to: "/cdn-cgi/rum?<token>" }`.
+  Nothing else changed: same token, same site, no cookies, no fingerprinting.
 - **Snapshot resolution.** Each transform reads the latest snapshot of its own source on or
   before the run date and stamps rows with that date, so a monthly run re-pulls only the
   monthly feeds and every other figure keeps citing its most recent pull.
