@@ -124,6 +124,36 @@ export async function sha256Hex(data: Uint8Array): Promise<string> {
   return [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, "0")).join("");
 }
 
+/** One node from a small box in the Hudson Valley: enough to show a server answers, holds
+ * New York (a regional extract returns nothing) and reports a current base. */
+export const PROBE_QUERY = "[out:json][timeout:25];node(42.07,-73.95,42.08,-73.94);out 1;";
+
+export interface ServerProbe {
+  server: string;
+  ok: boolean;
+  /** The server's osm3s.timestamp_osm_base when it answered, else null. */
+  base: string | null;
+  reason: string;
+  ms: number;
+}
+
+/** The probe verdict for one server, from the same rules as a town query plus one more: an
+ * answer with no elements means the mirror does not hold New York (a regional extract). */
+export function probeVerdict(server: string, status: number, body: string, freshness: { asOf: string; maxAgeDays: number }, ms: number): ServerProbe {
+  const verdict = classify(status, body, freshness);
+  if (!verdict.ok) return { server, ok: false, base: null, reason: verdict.reason, ms };
+  const base = String((verdict.payload.osm3s as { timestamp_osm_base?: string } | undefined)?.timestamp_osm_base ?? "") || null;
+  const elements = verdict.payload.elements;
+  if (!Array.isArray(elements) || elements.length === 0) return { server, ok: false, base, reason: "no data for New York", ms };
+  return { server, ok: true, base, reason: "ok", ms };
+}
+
+/** The servers worth asking for this snapshot, in the manifest's order. */
+export function usableServers(servers: string[], probes: ServerProbe[]): string[] {
+  const ok = new Set(probes.filter((p) => p.ok).map((p) => p.server));
+  return servers.filter((s) => ok.has(s));
+}
+
 export interface RunSummary {
   as_of: string;
   manifest: string;
@@ -131,4 +161,8 @@ export interface RunSummary {
   stored: number;
   present: number;
   servers: Record<string, number>;
+  /** "fetched" when at least one server was usable; "no usable server" ends the instance
+   * cleanly in seconds so the Python ingest, which reaches other servers, does the work. */
+  status: "fetched" | "no usable server";
+  probes: ServerProbe[];
 }

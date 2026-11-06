@@ -7,10 +7,16 @@
  * retry to the other machine. A step that finds its file already stored returns at once,
  * which is what makes a re-run of a partly finished instance cheap. Documents and sidecars
  * are written exactly as the Python ingest writes them, under the same keys.
+ *
+ * Before the towns, one probe step asks each server for a single node and keeps only those
+ * that answer with a current base and New York data. From Cloudflare's edge most public
+ * Overpass servers refuse or time out and one serves a stale replica (probed 2026-11-06),
+ * so when none is usable the instance completes at once with status "no usable server"
+ * instead of burning eight minutes of retries; the Python ingest reaches other servers.
  */
 import { NonRetryableError } from "cloudflare:workflows";
 import { WorkflowEntrypoint, type WorkflowEvent, type WorkflowStep } from "cloudflare:workers";
-import { QUERIES_PREFIX, classify, documentFor, isoDate, latestQueriesKey, metaFor, rawKey, serverFor, sha256Hex, type QueriesManifest, type RunSummary } from "./osm";
+import { PROBE_QUERY, QUERIES_PREFIX, classify, documentFor, isoDate, latestQueriesKey, metaFor, probeVerdict, rawKey, serverFor, sha256Hex, usableServers, type QueriesManifest, type RunSummary, type ServerProbe } from "./osm";
 
 export interface OsmEnv {
   RAW: R2Bucket;
@@ -22,6 +28,7 @@ export interface OsmParams {
 }
 
 const encoder = new TextEncoder();
+const USER_AGENT = "Comeback Towns/0.1 (+https://comebacktowns.com; data@comebacktowns.com)";
 
 export class OsmWorkflow extends WorkflowEntrypoint<OsmEnv, OsmParams> {
   async run(event: WorkflowEvent<OsmParams>, step: WorkflowStep): Promise<RunSummary> {
@@ -36,8 +43,29 @@ export class OsmWorkflow extends WorkflowEntrypoint<OsmEnv, OsmParams> {
       return { key, manifest: (await object.json()) as QueriesManifest };
     });
 
-    const summary: RunSummary = { as_of: asOf, manifest: manifestKey, towns: manifest.towns.length, stored: 0, present: 0, servers: {} };
-    const retries = Math.max(1, manifest.servers.length * manifest.retries_per_server) - 1;
+    const freshness = { asOf, maxAgeDays: manifest.max_base_age_days ?? 14 };
+    const probes = await step.do("probe the servers", { retries: { limit: 0, delay: "1 second" }, timeout: "3 minutes" }, async () => {
+      const results: ServerProbe[] = [];
+      for (const server of manifest.servers) {
+        const t0 = Date.now();
+        try {
+          const response = await fetch(server, {
+            method: "POST",
+            headers: { "Content-Type": "application/x-www-form-urlencoded", "User-Agent": USER_AGENT },
+            body: new URLSearchParams({ data: PROBE_QUERY }),
+            signal: AbortSignal.timeout(20_000),
+          });
+          results.push(probeVerdict(server, response.status, await response.text(), freshness, Date.now() - t0));
+        } catch (error) {
+          results.push({ server, ok: false, base: null, reason: String(error).slice(0, 120), ms: Date.now() - t0 });
+        }
+      }
+      return results;
+    });
+    const servers = usableServers(manifest.servers, probes);
+    const summary: RunSummary = { as_of: asOf, manifest: manifestKey, towns: manifest.towns.length, stored: 0, present: 0, servers: {}, status: servers.length ? "fetched" : "no usable server", probes };
+    if (!servers.length) return summary;
+    const retries = Math.max(1, servers.length * manifest.retries_per_server) - 1;
 
     for (const town of manifest.towns) {
       const outcome = await step.do(
@@ -46,15 +74,15 @@ export class OsmWorkflow extends WorkflowEntrypoint<OsmEnv, OsmParams> {
         async (ctx) => {
           const key = rawKey(asOf, town.geoid);
           if (await this.env.RAW.head(key)) return { status: "present" as const, server: null };
-          const server = serverFor(ctx.attempt, manifest.servers);
+          const server = serverFor(ctx.attempt, servers);
           // Polite pacing against a shared public server; wall time, not CPU.
           await new Promise((resolve) => setTimeout(resolve, manifest.min_interval_seconds * 1000));
           const response = await fetch(server, {
             method: "POST",
-            headers: { "Content-Type": "application/x-www-form-urlencoded", "User-Agent": "Comeback Towns/0.1 (+https://comebacktowns.com; data@comebacktowns.com)" },
+            headers: { "Content-Type": "application/x-www-form-urlencoded", "User-Agent": USER_AGENT },
             body: new URLSearchParams({ data: town.query }),
           });
-          const verdict = classify(response.status, await response.text(), { asOf, maxAgeDays: manifest.max_base_age_days ?? 14 });
+          const verdict = classify(response.status, await response.text(), freshness);
           if (!verdict.ok) {
             const message = `osm: ${town.slug} @ ${new URL(server).host}: ${verdict.reason}`;
             if (verdict.retryable) throw new Error(message);

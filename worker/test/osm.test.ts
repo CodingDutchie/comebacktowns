@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { classify, documentFor, isoDate, latestQueriesKey, metaFor, rawKey, serverFor, sha256Hex, type TownQuery } from "../src/osm";
+import { classify, documentFor, isoDate, latestQueriesKey, metaFor, probeVerdict, rawKey, serverFor, sha256Hex, usableServers, type TownQuery } from "../src/osm";
 
 const town: TownQuery = { geoid: "3613002", slug: "catskill-ny", polygon_parts: 2, query: '[out:json];nwr["shop"](poly:"42.2 -73.87");out tags center;' };
 
@@ -78,5 +78,30 @@ describe("document and sidecar", () => {
     expect(Object.keys(meta)).toEqual(["key", "url", "bytes", "sha256", "content_type", "fetched_at"]);
     expect(meta.fetched_at).toBe("2026-11-02T03:04:05+00:00");
     expect(String(meta.sha256)).toMatch(/^[0-9a-f]{64}$/);
+  });
+});
+
+describe("server probe", () => {
+  const fresh = { asOf: "2026-11-06", maxAgeDays: 14 };
+  const node = JSON.stringify({ osm3s: { timestamp_osm_base: "2026-11-06T10:00:00Z" }, elements: [{ type: "node", id: 1 }] });
+  it("keeps a server that answers with a current base and New York data", () => {
+    expect(probeVerdict("https://a/api", 200, node, fresh, 300)).toEqual({ server: "https://a/api", ok: true, base: "2026-11-06T10:00:00Z", reason: "ok", ms: 300 });
+  });
+  it("drops a stale replica, a refused connection and a regional extract", () => {
+    const stale = JSON.stringify({ osm3s: { timestamp_osm_base: "2026-08-10T00:10:23Z" }, elements: [{ type: "node", id: 1 }] });
+    expect(probeVerdict("https://fr/api", 200, stale, fresh, 400)).toMatchObject({ ok: false, reason: "stale replica: data from 2026-08-10T00:10:23.000Z" });
+    expect(probeVerdict("https://de/api", 521, "error code: 521", fresh, 19000)).toMatchObject({ ok: false, base: null, reason: "HTTP 521" });
+    const swiss = JSON.stringify({ osm3s: { timestamp_osm_base: "2026-11-06T10:00:00Z" }, elements: [] });
+    expect(probeVerdict("https://ch/api", 200, swiss, fresh, 400)).toMatchObject({ ok: false, reason: "no data for New York" });
+  });
+  it("keeps the manifest's order among the usable servers", () => {
+    const servers = ["https://fr/api", "https://z/api", "https://a/api"];
+    const probes = [
+      probeVerdict("https://a/api", 200, node, fresh, 1),
+      probeVerdict("https://fr/api", 521, "", fresh, 1),
+      probeVerdict("https://z/api", 200, node, fresh, 1),
+    ];
+    expect(usableServers(servers, probes)).toEqual(["https://z/api", "https://a/api"]);
+    expect(usableServers(servers, probes.map((p) => ({ ...p, ok: false })))).toEqual([]);
   });
 });
