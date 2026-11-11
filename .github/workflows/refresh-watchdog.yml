@@ -50,12 +50,16 @@ jobs:
               core.setOutput("missing", "false");
               return;
             }
-            await github.rest.actions.createWorkflowDispatch({
-              owner: context.repo.owner, repo: context.repo.repo,
-              workflow_id: "refresh-monthly.yml", ref: context.ref.replace("refs/heads/", ""),
-              inputs: { skip_pilot: "false" },
-            });
-            core.info("no successful refresh this month: dispatched refresh-monthly");
+            // Defaults only (skip_pilot stays false). A failed dispatch still records the miss.
+            try {
+              await github.rest.actions.createWorkflowDispatch({
+                owner: context.repo.owner, repo: context.repo.repo,
+                workflow_id: "refresh-monthly.yml", ref: context.ref.replace("refs/heads/", ""),
+              });
+              core.info("no successful refresh this month: dispatched refresh-monthly");
+            } catch (err) {
+              core.warning(`no successful refresh this month and the retry dispatch failed: ${err.message}`);
+            }
             core.setOutput("missing", "true");
   report:
     needs: check
@@ -64,5 +68,5 @@ jobs:
     with:
       workflow_name: refresh-monthly
       failed_step: no successful run this month
-      message: "**refresh-monthly** has no successful run this month, so the data was not refreshed. Either GitHub skipped both scheduled slots or every run failed. The watchdog has dispatched refresh-monthly again (it retries on the 3rd, 5th and 9th); this issue is the record and closes when a run publishes."
+      message: "**refresh-monthly** has no successful run this month, so the data was not refreshed. Either GitHub skipped both scheduled slots or every run failed. The watchdog has dispatched refresh-monthly again (it retries on the 3rd, 5th and 9th). This issue is the record; it is closed automatically when a refresh-monthly run publishes."
     secrets: inherit

@@ -100,8 +100,10 @@ without its owner, so sessions decide, record why in `docs/DECISIONS.md`, and ca
    retry on the next cycle. QA rule 4 and the coverage floor already work this way.
 3. **Model work runs in Claude sessions** (interactive or scheduled, on the owner's plan).
    Deployed code (pipeline, Worker, Workflow, site, hooks) does only deterministic work and
-   never calls a model. No Console API key and no Workers AI without a written case here first
-   (what it buys, what it costs, a hard monthly cap).
+   never calls a model. A Console API key or Workers AI is justified only when end users
+   trigger the model live or a step must run unattended more often than hourly; even then it
+   is spend, so it goes to Emory as a written case (what it buys, what it costs, a hard monthly
+   cap) and nothing is added or raised until they say yes. The Guardrails above stand.
 4. **Two independent readings plus deterministic checks replace human review** (rulings R1
    and R2). Report *agreement* between readings, never "accuracy", unless a person has
    checked a sample.
@@ -111,7 +113,8 @@ without its owner, so sessions decide, record why in `docs/DECISIONS.md`, and ca
 BUILD_PLAN.md §11 ("stop and ask the owner") still holds for its items 1, 2 and 4 (tokens,
 money, a licence or registration): those are access and money. Its items 3 and 5 are covered
 by the rulings. `BACKLOG.md` is the task list: read it first, tick what you finish with the
-date and PR, add what you find. Model use: Sonnet by default, Haiku for small mechanical jobs,
+date and PR, add what you find; items under "Needs Emory" are theirs to do, so do not start
+them, and keep working on everything else. Model use: Sonnet by default, Haiku for small mechanical jobs,
 Opus only where a mistake is costly. Keep to the design language (tokens and shared
 components); extend it rather than adding one-off styles.
 
@@ -121,7 +124,8 @@ components); extend it rather than adding one-off styles.
   (b) the author ran the repo's checks locally, and (c) a second, independent reading of the
   diff (a fresh-context reviewer given only the diff, this file and `docs/DECISIONS.md`) found
   nothing blocking. The PR records both readings and whether they agreed. Disagreement means
-  not shipped: hold, record why on the PR, retry next cycle.
+  not shipped: hold, record why on the PR, retry next cycle. R1 covers code, config, docs and
+  workflows alike; it never covers money, access or messages in the owner's name.
 - **R2 QA rule 4 drift.** Never bypassed, never widened. A drift is re-baselined, for that one
   row only, when two independent readings of the raw snapshots agree it is a genuine input
   change: the same drift on two fresh snapshots from different days, the changed input's raw

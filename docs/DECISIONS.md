@@ -275,7 +275,9 @@ New decisions go here; rules that must hold in every session go in CLAUDE.md ("R
   and two backlog items. Decisions taken under the policy the same day: the Russian Overpass
   mirrors are out on the Nov 2026 probe results, not jurisdiction (R4); expansion beyond New
   York is a measured gate of 300 clicks in 28 days plus two clean refreshes (R5); the watchdog
-  retries the refresh on the 3rd, 5th and 9th instead of asking (R3). The one item that stays
+  retries the refresh on the 3rd, 5th and 9th instead of asking, and a publish closes the
+  month's `refresh-failure` issues (R3; this supersedes the 2 Nov entry's watchdog, which only
+  opened an issue). The one item that stays
   with Emory is access-only: requesting indexing in Search Console, recorded with its exact
   step in `BACKLOG.md`. Outreach in the owner's name (held since 26 Oct in another session)
   also stays theirs by the policy's own exception.
