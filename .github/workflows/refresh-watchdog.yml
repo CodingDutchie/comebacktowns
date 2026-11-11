@@ -1,16 +1,20 @@
 name: refresh-watchdog
 
-# The 3rd of the month: if refresh-monthly has no successful run this month (GitHub skipped
-# both cron slots, or every run failed), open or update a refresh-failure issue. It runs on
-# GitHub's cron too, so it cannot catch GitHub being down all day, only a missed slot.
+# The 3rd, 5th and 9th of the month: if refresh-monthly has no successful run this month
+# (GitHub skipped both cron slots, or every run failed) and none is running, dispatch it again
+# and open or update the refresh-failure issue as the record (CLAUDE.md ruling R3). Every feed
+# resumes where it left off, so a retry only redoes what failed. It runs on GitHub's cron too,
+# so it cannot catch GitHub being down all day, only a missed slot or a failed run.
 on:
   schedule:
     - cron: "30 10 3 * *"
+    - cron: "30 10 5 * *"
+    - cron: "30 10 9 * *"
   workflow_dispatch:
 
 permissions:
   contents: read
-  actions: read
+  actions: write
   issues: write
 
 jobs:
@@ -30,7 +34,29 @@ jobs:
               workflow_id: "refresh-monthly.yml", status: "success", created: `>=${monthStart}`, per_page: 5,
             });
             core.info(`successful refresh-monthly runs since ${monthStart}: ${data.total_count}`);
-            core.setOutput("missing", data.total_count === 0 ? "true" : "false");
+            if (data.total_count > 0) { core.setOutput("missing", "false"); return; }
+            // A run still going is left alone; otherwise retry now. The refresh's own guard only
+            // skips scheduled runs, so this dispatch always runs.
+            let busy = 0;
+            for (const status of ["in_progress", "queued"]) {
+              const { data: runs } = await github.rest.actions.listWorkflowRuns({
+                owner: context.repo.owner, repo: context.repo.repo,
+                workflow_id: "refresh-monthly.yml", status, per_page: 5,
+              });
+              busy += runs.total_count;
+            }
+            if (busy > 0) {
+              core.info("a refresh-monthly run is already in progress; not dispatching another");
+              core.setOutput("missing", "false");
+              return;
+            }
+            await github.rest.actions.createWorkflowDispatch({
+              owner: context.repo.owner, repo: context.repo.repo,
+              workflow_id: "refresh-monthly.yml", ref: context.ref.replace("refs/heads/", ""),
+              inputs: { skip_pilot: "false" },
+            });
+            core.info("no successful refresh this month: dispatched refresh-monthly");
+            core.setOutput("missing", "true");
   report:
     needs: check
     if: needs.check.outputs.missing == 'true'
@@ -38,5 +64,5 @@ jobs:
     with:
       workflow_name: refresh-monthly
       failed_step: no successful run this month
-      message: "**refresh-monthly** has no successful run this month, so the data was not refreshed. Either GitHub skipped both scheduled slots or every run failed. Dispatch refresh-monthly by hand (or fix the failing run linked from the earlier issue)."
+      message: "**refresh-monthly** has no successful run this month, so the data was not refreshed. Either GitHub skipped both scheduled slots or every run failed. The watchdog has dispatched refresh-monthly again (it retries on the 3rd, 5th and 9th); this issue is the record and closes when a run publishes."
     secrets: inherit

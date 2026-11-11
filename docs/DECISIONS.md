@@ -262,6 +262,23 @@ New decisions go here; rules that must hold in every session go in CLAUDE.md ("R
   sets), and the zone accepts that path (HTTP 204 with CORS headers, events recorded against
   the site tag within minutes). `Base.astro` now sets `send: { to: "/cdn-cgi/rum?<token>" }`.
   Nothing else changed: same token, same site, no cookies, no fingerprinting.
+- **Operating policy adopted (11 Nov 2026).** The owner set a policy for projects that run
+  without them: decide and record rather than hand back; uncertain means not shipped; model work
+  only in Claude sessions, deployed code deterministic; two independent readings plus
+  deterministic checks instead of human review, reporting agreement never accuracy; rulings made
+  once and applied. The policy and the rulings (R1 merging, R2 QA rule 4 drift, R3 retries, R4
+  Overpass servers, R5 expansion gate, R6 claims) live in `CLAUDE.md`. The audit that day: no
+  model is called anywhere in the project (secrets are Cloudflare's and the Census key; the
+  Worker, Workflow, site and hooks are deterministic); the owner-waits were the `CLAUDE.md`
+  owner section ("ask Emory before anything irreversible"), `seed/README.md` ("re-baseline only
+  with the owner's decision"), the watchdog's "dispatch by hand", BUILD_PLAN §11 items 3 and 5,
+  and two backlog items. Decisions taken under the policy the same day: the Russian Overpass
+  mirrors are out on the Nov 2026 probe results, not jurisdiction (R4); expansion beyond New
+  York is a measured gate of 300 clicks in 28 days plus two clean refreshes (R5); the watchdog
+  retries the refresh on the 3rd, 5th and 9th instead of asking (R3). The one item that stays
+  with Emory is access-only: requesting indexing in Search Console, recorded with its exact
+  step in `BACKLOG.md`. Outreach in the owner's name (held since 26 Oct in another session)
+  also stays theirs by the policy's own exception.
 - **Snapshot resolution.** Each transform reads the latest snapshot of its own source on or
   before the run date and stamps rows with that date, so a monthly run re-pulls only the
   monthly feeds and every other figure keeps citing its most recent pull.
