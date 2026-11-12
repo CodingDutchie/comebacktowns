@@ -131,7 +131,8 @@ components); extend it rather than adding one-off styles.
   change: the same drift on two fresh snapshots from different days, the changed input's raw
   documents carrying current base dates, and the method unchanged. Record it in
   `docs/DECISIONS.md` and `seed/README.md`. Anything else holds the publish and retries next
-  cycle. Saugerties (2026-11-06) is the precedent.
+  cycle. Saugerties (2026-11-06) is the precedent: decided by Emory at the time, it meets
+  R2's criteria.
 - **R3 Retries.** A failed or skipped monthly refresh is retried by `refresh-watchdog.yml` on
   the 3rd, 5th and 9th; the `refresh-failure` issue is the record, not a request to a person.
 - **R4 Overpass servers.** A server joins `workflow_servers` or `fallback_urls` only after
