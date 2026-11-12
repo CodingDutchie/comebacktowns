@@ -88,10 +88,62 @@ and fix every FAIL with its recipe. It catches the duplicate hosts, soft-404s,
 canonical mismatches and stale analytics beacons that otherwise surface weeks later
 in Search Console.
 
-## Owner & backlog
+## Operating policy (owner's, 2026-11-11) and standing rulings
 
-- The owner is **Emory** (Emory de Koop). Address the owner as Emory — never "Eddy", even where seed data uses that nickname.
-- `BACKLOG.md` is this repo's task list. Read it at the start of a session. When you finish a task, tick it and add the date and PR. Add new tasks you discover. Don't start items under "Needs Emory"; ask instead.
-- Model use: Sonnet by default, Haiku for small mechanical jobs, Opus only where a mistake is costly (tax/finance claims, pricing logic, tricky debugging).
-- Ask Emory before anything irreversible, any production data change, or any spend beyond an agreed cap.
-- Keep to the project's design language (tokens and shared components); extend it rather than adding one-off styles.
+The owner is **Emory** (Emory de Koop); address them as Emory, never "Eddy". The project runs
+without its owner, so sessions decide, record why in `docs/DECISIONS.md`, and carry on:
+
+1. **Decide, do not hand back.** Ask Emory only for what only they can do: money, access,
+   limits, or messages in their name. Ask once, with the exact step, in `BACKLOG.md` under
+   "Needs Emory", and keep working on everything else.
+2. **Uncertain means not shipped**, never "queued for a person". Hold it back, record why, and
+   retry on the next cycle. QA rule 4 and the coverage floor already work this way.
+3. **Model work runs in Claude sessions** (interactive or scheduled, on the owner's plan; the
+   scheduled one is "Comeback Towns monthly session", the 4th and 10th, which applies these
+   rulings to the month's refresh and ships its own PR under R1).
+   Deployed code (pipeline, Worker, Workflow, site, hooks) does only deterministic work and
+   never calls a model. A Console API key or Workers AI is justified only when end users
+   trigger the model live or a step must run unattended more often than hourly; even then it
+   is spend, so it goes to Emory as a written case (what it buys, what it costs, a hard monthly
+   cap) and nothing is added or raised until they say yes. The Guardrails above stand.
+4. **Two independent readings plus deterministic checks replace human review** (rulings R1
+   and R2). Report *agreement* between readings, never "accuracy", unless a person has
+   checked a sample.
+5. **Rulings are made once, recorded, and applied.** The list below is the current set.
+6. **End with what was done and what was found**, not a menu of options.
+
+BUILD_PLAN.md §11 ("stop and ask the owner") still holds for its items 1, 2 and 4 (tokens,
+money, a licence or registration): those are access and money. Its items 3 and 5 are covered
+by the rulings. `BACKLOG.md` is the task list: read it first, tick what you finish with the
+date and PR, add what you find; items under "Needs Emory" are theirs to do, so do not start
+them, and keep working on everything else. Model use: Sonnet by default, Haiku for small mechanical jobs,
+Opus only where a mistake is costly. Keep to the design language (tokens and shared
+components); extend it rather than adding one-off styles.
+
+### Rulings
+
+- **R1 Merging.** A pull request merges without Emory when (a) CI is green on its head,
+  (b) the author ran the repo's checks locally, and (c) a second, independent reading of the
+  diff (a fresh-context reviewer given only the diff, this file and `docs/DECISIONS.md`) found
+  nothing blocking. The PR records both readings and whether they agreed. Disagreement means
+  not shipped: hold, record why on the PR, retry next cycle. R1 covers code, config, docs and
+  workflows alike; it never covers money, access or messages in the owner's name.
+- **R2 QA rule 4 drift.** Never bypassed, never widened. A drift is re-baselined, for that one
+  row only, when two independent readings of the raw snapshots agree it is a genuine input
+  change: the same drift on two fresh snapshots from different days, the changed input's raw
+  documents carrying current base dates, and the method unchanged. Record it in
+  `docs/DECISIONS.md` and `seed/README.md`. Anything else holds the publish and retries next
+  cycle. Saugerties (2026-11-06) is the precedent: decided by Emory at the time, it meets
+  R2's criteria.
+- **R3 Retries.** A failed or skipped monthly refresh is retried by `refresh-watchdog.yml` on
+  the 3rd, 5th and 9th; the `refresh-failure` issue is the record, not a request to a person.
+- **R4 Overpass servers.** A server joins `workflow_servers` or `fallback_urls` only after
+  passing the probe (current base, New York data) on two different days. Hosting jurisdiction
+  is not a criterion: the queries carry no personal data and the data is public. The Russian
+  mirrors are out on the Nov 2026 probe results (504, 522), not on jurisdiction.
+- **R5 Expansion beyond New York** waits on a measured gate, not a decision: New York town
+  pages earning at least 300 Google clicks in a 28-day window and two consecutive clean
+  monthly refreshes. Until then the backlog carries it under Waiting.
+- **R6 Claims.** Nothing on the site or in the docs claims accuracy. The pilot fixture
+  measures agreement with the published engine; every figure says what it is and when it was
+  pulled.

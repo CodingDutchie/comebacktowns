@@ -9,19 +9,22 @@ Model tag = suggested model for the job. Source: portfolio triage of 21 Oct 2026
 ## Ready (found 2026-10-24)
 
 
-## Needs Emory (decisions, accounts, money, Search Console, outreach)
+## Needs Emory (money, access, limits, messages in their name — each with the exact step)
 
-- [ ] Request indexing on key pages as alternate canonicals fall  _(Search Console session)_
-- [ ] Expand beyond NY? (once NY pages earn traffic)  _(Decisions)_
+- [ ] Request indexing on the pages Google still holds under the old canonical: in Search Console (property sc-domain:comebacktowns.com) → URL inspection, paste each clean URL, "Request indexing". The list is the "Alternate page with proper canonical tag" group in the dashboard's Index coverage drawer for comebacktowns (23 on 2026-11-08) plus /town/coxsackie-ny ("URL is unknown to Google"). Only the property owner's account can do this; the API has no request-indexing call. It speeds up what Google is already doing on its own (27 → 23 between 6 and 8 Nov).
 
 ## Waiting (time-bound)
 
+- [ ] Expand beyond New York when ruling R5's gate is met: ≥ 300 Google clicks on NY town pages in a 28-day window (3 on 2026-11-07) and two consecutive clean monthly refreshes. Measured, not decided.
 - [ ] Confirm the 2 Dec 2026 OSM Workflow instance stored files and which mirror answered  _(R2 listing or Workflow logs; the Nov 2, 3 and 6 instances all errored on the mirrors, see Ready, and the GitHub ingest filled all 148)_
 - [ ] Verify `wrangler workflows instances describe` output matches the wait step's `status` parse on the first real run (a manual osm-workflow dispatch after merge is enough)
 - [ ] Re-read Search Console for /county/* and /region/* about 4 weeks after the title change ships (baseline: Westchester pos 10.4, Mohawk Valley pos 11.3)
 
 ## Done
 
+- [x] 2026-11-11 Operating policy adopted and audited (CLAUDE.md "Operating policy", `docs/DECISIONS.md`): no model is called by deployed code (the secrets are Cloudflare's, the Census key and the dashboard's reporting token; none is a model key); six rulings replace the owner-waits in CLAUDE.md, seed/README.md and the watchdog; `refresh-watchdog.yml` now retries the refresh itself on the 3rd, 5th and 9th and a publish closes the month's failure issues; "Needs Emory" holds only the Search Console request-indexing step. A scheduled Claude session ("Comeback Towns monthly session", the 4th and 10th at 12:17 UTC, fresh session each time) applies the rulings each month: refresh state, R2 drift, OSM Workflow, site health, numbers against the R5 gate, PR under R1. PR #50.
+- [x] 2026-11-11 Web Analytics confirmed recording real visits since the first-party beacon (Cloudflare: 8, 6, 1, 5 and 2 page views on 6–11 Nov; dashboard visits tile moving).
+- [x] 2026-11-08 Dashboard "not indexed" counts pages, not views of pages (AI-project-dashboard PR #41): comebacktowns 196 → 34, with 10 "moved" shown separately; 148 /compare?towns= links no longer inspected.
 - [x] 2026-11-06 Web Analytics recorded nothing from 6 Oct to 6 Nov: the beacon posted to cloudflareinsights.com and was refused (CORS, hostname not registered on the automatic-setup site record). It now posts first-party to the site's own /cdn-cgi/rum, which the zone accepts; verified in headless Chromium (HTTP 204) and in Cloudflare's analytics (events recorded against the site tag). Details in `docs/DECISIONS.md`. PR #49.
 - [x] 2026-11-06 OSM Workflow mirrors: probed eleven public Overpass servers from a throwaway Worker; none reachable from Cloudflare's edge serves a current global map (details in `docs/DECISIONS.md`). The Workflow now probes its servers first and completes with "no usable server" in seconds when none qualifies, so refresh-monthly loses no time and the head start returns on its own when a mirror recovers. PR #48.
 - [x] 2026-11-06 November data published (refresh-monthly run 42269967641): all 148 towns fetched fresh from overpass-api.de over two resumed runs, QA rule 4 passed, site shows readiness and momentum computed 2026-11-06. Issues #41, #42, #45 closed.
