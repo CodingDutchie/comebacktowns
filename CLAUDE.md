@@ -98,7 +98,9 @@ without its owner, so sessions decide, record why in `docs/DECISIONS.md`, and ca
    "Needs Emory", and keep working on everything else.
 2. **Uncertain means not shipped**, never "queued for a person". Hold it back, record why, and
    retry on the next cycle. QA rule 4 and the coverage floor already work this way.
-3. **Model work runs in Claude sessions** (interactive or scheduled, on the owner's plan).
+3. **Model work runs in Claude sessions** (interactive or scheduled, on the owner's plan; the
+   scheduled one is "Comeback Towns monthly session", the 4th and 10th, which applies these
+   rulings to the month's refresh and ships its own PR under R1).
    Deployed code (pipeline, Worker, Workflow, site, hooks) does only deterministic work and
    never calls a model. A Console API key or Workers AI is justified only when end users
    trigger the model live or a step must run unattended more often than hourly; even then it
