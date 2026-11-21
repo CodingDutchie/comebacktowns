@@ -269,7 +269,10 @@ if (rumSites) {
   const active = rumSites.filter((x) => covers(x) && (x.auto_install ? x.ruleset?.enabled !== false : true));
   const label = (x) => `${x.host ? 'JS snippet' : 'automatic'} site ${x.site_tag.slice(0, 6)}… (token ${x.site_token.slice(0, 6)}…)`;
   const onPage = active.filter((x) => tokens.includes(x.site_token));
-  if (tokens.length && !rumSites.some((x) => tokens.includes(x.site_token))) add('FAIL', 'analytics', `the beacon token ${tokens[0].slice(0, 6)}… belongs to no Web Analytics site on this account: it records nowhere you can see`, 'R8');
+  // A WARN, not a FAIL: a site created minutes ago, or by Cloudflare itself (a
+  // domain bought at Cloudflare Registrar, Oct 2026), can record page loads
+  // before the site list shows it. The page-loads check below is the proof.
+  if (tokens.length && !rumSites.some((x) => tokens.includes(x.site_token))) add('WARN', 'analytics', `the beacon token ${tokens[0].slice(0, 6)}… is not in this account's Web Analytics site list (new sites can lag; the page-loads check below says whether it records)`, 'R8');
   if (active.length > 1) {
     const keep = onPage[0] || active[0];
     add('WARN', 'analytics', `${active.length} active Web Analytics sites cover ${host}: ${active.map(label).join(', ')}. Keep the ${label(keep)}${onPage.length ? ' whose token is on the page' : ''}; disable the others once every page carries its beacon`, 'R10');
@@ -278,7 +281,8 @@ if (rumSites) {
 
 // Optional: does Cloudflare actually have page loads for this host? Needs the read-only analytics token.
 if (tokens.length && process.env.CLOUDFLARE_ANALYTICS_TOKEN && (process.env.CF_ACCOUNT_ID || process.env.CLOUDFLARE_ACCOUNT_ID)) {
-  const to = new Date(Date.now() - 864e5).toISOString().slice(0, 10);
+  // Up to today: a site that went live today has no page loads yesterday.
+  const to = new Date().toISOString().slice(0, 10);
   const from = new Date(Date.now() - 14 * 864e5).toISOString().slice(0, 10);
   const query = `query($a:string!,$f:Date!,$t:Date!,$h:string!){viewer{accounts(filter:{accountTag:$a}){rum:rumPageloadEventsAdaptiveGroups(limit:1,filter:{date_geq:$f,date_leq:$t,requestHost:$h}){count}}}}`;
   try {
@@ -288,7 +292,7 @@ if (tokens.length && process.env.CLOUDFLARE_ANALYTICS_TOKEN && (process.env.CF_A
       body: JSON.stringify({ query, variables: { a: process.env.CF_ACCOUNT_ID || process.env.CLOUDFLARE_ACCOUNT_ID, f: from, t: to, h: host } }),
     }).then((x) => x.json());
     const n = r?.data?.viewer?.accounts?.[0]?.rum?.[0]?.count ?? 0;
-    if (n > 0) add('PASS', 'analytics', `Web Analytics has page loads for ${host} in the last 14 days`);
+    if (n > 0) add('PASS', 'analytics', `Web Analytics has page loads for ${host} in the last 14 days (incl. today)`);
     else add('WARN', 'analytics', `Web Analytics has no page loads for ${host} in 14 days: the beacon may belong to another site (or the site is new)`, 'R8');
   } catch { /* optional check; say nothing */ }
 }

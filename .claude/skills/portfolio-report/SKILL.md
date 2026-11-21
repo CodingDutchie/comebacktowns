@@ -82,6 +82,45 @@ git rev-parse HEAD > "$(git rev-parse --git-dir)/portfolio-dash-report"
 It lives inside `.git/`, so it is never committed and never travels between
 clones.
 
+## Objects
+
+Emory's knowledge base, Objects, keeps a page per project with its open tasks and
+a History list. It has no way to learn what a session did, so it falls behind
+unless the session tells it. Do this after the dashboard report, whether or not
+that report went through.
+
+`objects.py` sits next to this file. It needs `CLOUDFLARE_API_TOKEN` and
+`CLOUDFLARE_ACCOUNT_ID`; without them, or if the API refuses, it prints one line
+saying Objects was skipped and exits 0. Take that as the answer and move on. The
+project's page comes from `.claude/objects-page`; if the repo has none, skip this
+step.
+
+```bash
+python3 .claude/skills/portfolio-report/objects.py show
+```
+
+That lists the page's open tasks and its last five history lines. Then:
+
+1. **Tick what this session finished**, with a note saying how:
+   `objects.py tick "<task substring>" "shipped in PR 12"`.
+   The substring must match exactly one open task; if it matches none or
+   several, the command lists the candidates and changes nothing. Pick a longer
+   substring. Use `note "<task substring>" "<note>"` for work that moved a task
+   without finishing it.
+2. **Add one to three history lines** saying what shipped:
+   `objects.py history "Shipped the county pages; 40 of 50 indexed."`
+   A line with no leading date gets today's.
+3. **Add the next task if there is a new one**: `objects.py add "<task>"`. One
+   that is already on the page, or that you have just ticked, is not new.
+4. **Tick the matching triage item**, if the work was on the shared triage page:
+   `objects.py triage-tick "<project> — <task substring>"`. If nothing matches,
+   leave triage alone.
+
+The same rules apply as for the dashboard: outcomes, not intentions. A history
+line says what landed, not what you plan. Do not tick a task because you started
+it, and do not edit pages other than this project's and the triage page. If the
+session shipped nothing, write nothing.
+
 ## Registering a new project
 
 The registry is the only human input this system takes, and it is deliberately
